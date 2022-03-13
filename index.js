@@ -1,1 +1,1 @@
-export { default, default as constancy } from './dist/constancy.min';
+module.exports = require('./dist/constancy.min');

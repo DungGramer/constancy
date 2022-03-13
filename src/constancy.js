@@ -41,4 +41,5 @@ function constancy(val) {
   return Object.freeze(val);
 }
 
+export default constancy;
 module.exports = constancy;

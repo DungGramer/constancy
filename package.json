@@ -1,18 +1,20 @@
 {
   "name": "constancy",
-  "version": "1.0.0",
-  "description": "Make constancy for a value",
+  "version": "1.0.1",
+  "description": "Make constancy for a array, object",
   "main": "index.js",
+  "browserslist": "> 0.25%, not dead",
   "scripts": {
     "test": "jest ./__tests__",
-    "build": "esbuild src/constancy.js --bundle --minify --outfile=dist/constancy.min.js --target=es5"
+    "build": "babel ./src/constancy.js --out-file ./dist/constancy.min.js --presets @babel/preset-env,minify --source-type=module --no-comments"
   },
   "keywords": [
     "constancy",
+    "constant",
     "const",
-    "constancy-case",
-    "constancyCase",
-    "constancycase"
+    "constant-case",
+    "constantCase",
+    "constantcase"
   ],
   "publishConfig": {
     "@dunggramer:registry": "https://npm.pkg.github.com"
@@ -27,5 +29,11 @@
     "name": "DungGramer",
     "email": "dung.dev.gramer@gmail.com"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "@babel/cli": "^7.17.6",
+    "@babel/core": "^7.17.5",
+    "@babel/preset-env": "^7.16.11",
+    "babel-preset-minify": "^0.5.1"
+  }
 }

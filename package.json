@@ -1,0 +1,31 @@
+{
+  "name": "constancy",
+  "version": "1.0.0",
+  "description": "Make constancy for a value",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest ./__tests__",
+    "build": "esbuild src/constancy.js --bundle --minify --outfile=dist/constancy.min.js --target=es5"
+  },
+  "keywords": [
+    "constancy",
+    "const",
+    "constancy-case",
+    "constancyCase",
+    "constancycase"
+  ],
+  "publishConfig": {
+    "@dunggramer:registry": "https://npm.pkg.github.com"
+  },
+  "repository": {
+    "url": "git://github.com/DungGramer/constancy.git"
+  },
+  "bugs": {
+    "url": "https://github.com/DungGramer/constancy/issues"
+  },
+  "author": {
+    "name": "DungGramer",
+    "email": "dung.dev.gramer@gmail.com"
+  },
+  "license": "MIT"
+}

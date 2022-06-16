@@ -1,6 +1,6 @@
 {
-  "name": "@dunggramer/constancy",
-  "version": "1.0.1",
+  "name": "constancy",
+  "version": "1.0.2",
   "description": "Make constancy for a array, object",
   "main": "index.js",
   "browserslist": "> 0.25%, not dead",
@@ -16,9 +16,6 @@
     "constantCase",
     "constantcase"
   ],
-  "publishConfig": {
-    "@dunggramer:registry": "https://npm.pkg.github.com"
-  },
   "repository": {
     "url": "git://github.com/DungGramer/constancy.git"
   },

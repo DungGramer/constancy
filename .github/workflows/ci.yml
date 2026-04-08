@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  test:
+    name: Test (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18, 20, 22]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm test
+
+  # Smoke test on older Node versions — dev tools (Vitest, tsup) need
+  # Node 18+, but the built library targets ES2015 and works on Node 6+.
+  # Build on Node 20, then verify CJS output on older runtimes.
+  compat:
+    name: Compat (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [14, 16]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Build with Node 20 (tsup requires >=18)
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      # Switch to older Node and verify
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Smoke test CJS
+        run: node -e "var m = require('./dist/index.cjs'); if (typeof m.constancy !== 'function') process.exit(1); if (typeof m.deepFreeze !== 'function') process.exit(1); var o = m.constancy({a:1}); try { o.a = 2 } catch(e) {}; if (o.a !== 1) process.exit(1); var d = m.deepFreeze({x:{y:1}}); try { d.x.y = 2 } catch(e) {}; if (d.x.y !== 1) process.exit(1); console.log('CJS OK')"
+
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run test:coverage

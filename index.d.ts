@@ -1,1 +1,0 @@
-export { default, default as constancy } from './dist/constancy.min';

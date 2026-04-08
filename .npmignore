@@ -1,5 +1,12 @@
 tsconfig.json
+tsup.config.ts
+vitest.config.ts
 .gitignore
 /__tests__
+/tests
 /node_modules
 /.github
+/src
+/plans
+/docs
+.claude

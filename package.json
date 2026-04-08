@@ -1,23 +1,51 @@
 {
   "name": "constancy",
-  "version": "1.0.2",
-  "description": "Make constancy for a array, object",
-  "main": "index.js",
-  "browserslist": "> 0.25%, not dead",
+  "version": "2.0.0",
+  "description": "Lightweight utility to make objects and arrays immutable with shallow and deep freeze",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "test": "jest ./__tests__",
-    "build": "babel ./src/constancy.js --out-file ./dist/constancy.min.js --presets @babel/preset-env,minify --source-type=module --no-comments"
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "engines": {
+    "node": ">=14"
   },
   "keywords": [
     "constancy",
     "constant",
-    "const",
-    "constant-case",
-    "constantCase",
-    "constantcase"
+    "freeze",
+    "deep-freeze",
+    "deepfreeze",
+    "immutable",
+    "immutability",
+    "readonly",
+    "object-freeze",
+    "frozen",
+    "typescript",
+    "zero-dependency",
+    "state-management"
   ],
+  "homepage": "https://github.com/DungGramer/constancy#readme",
   "repository": {
-    "url": "git://github.com/DungGramer/constancy.git"
+    "type": "git",
+    "url": "https://github.com/DungGramer/constancy.git"
   },
   "bugs": {
     "url": "https://github.com/DungGramer/constancy/issues"
@@ -27,10 +55,14 @@
     "email": "dung.dev.gramer@gmail.com"
   },
   "license": "MIT",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "devDependencies": {
-    "@babel/cli": "^7.17.6",
-    "@babel/core": "^7.17.5",
-    "@babel/preset-env": "^7.16.11",
-    "babel-preset-minify": "^0.5.1"
+    "@vitest/coverage-v8": "^3.2.4",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
   }
 }

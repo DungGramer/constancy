@@ -2,6 +2,48 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.0.0] - 2026-04-16
+
+### Breaking Changes
+- Minimum Node.js version: 18 (was 14)
+- All API names renamed for semantic clarity (see migration below)
+- `deepClone()` uses `structuredClone` only — no JSON fallback
+- `secureSnapshot()` rejects non-plain objects with TypeError
+
+### API Renames (no backward compat aliases)
+- `constancy()` → `freezeShallow()`
+- `immutable()` → `immutableView()`
+- `isImmutable()` → `isImmutableView()`
+- `immutableMap()` → `immutableMapView()`
+- `immutableSet()` → `immutableSetView()`
+- `lock()` → `snapshot()` (lock kept as alias)
+- `secure()` → `secureSnapshot()`
+- `tamperProof()` → `tamperEvident()`
+- `assertImmutable()` → `assertDeepFrozen()`
+- `checkIntegrity()` → `checkRuntimeIntegrity()`
+- `TamperProofVault` → `TamperEvidentVault`
+
+### Added
+- `snapshot()` / `lock()` — clone + deepFreeze (true data immutability)
+- `vault()` — closure isolation with copy-on-read
+- `secureSnapshot()` — null proto + getter-only + non-configurable (plain objects only)
+- `tamperEvident()` — vault + djb2 structural hash verification
+- `immutableView()` — Proxy-based view with full trap set (ownKeys, getOwnPropertyDescriptor, has, preventExtensions, isExtensible)
+- `assertImmutableView()` — symmetric assertion for Proxy views
+- `assertDeepFrozen()` — assertion for data-level immutability
+- `isImmutableView()` — WeakSet-based detection (unforgeable)
+- `checkRuntimeIntegrity()` — detect builtin tampering at runtime
+- `immutableMapView()` / `immutableSetView()` — read-only collection wrappers with defensive copy
+- Cached builtins (Object.freeze, Reflect.ownKeys, etc.) for post-import tamper resistance
+- Date/WeakMap/WeakSet mutation blocking in `immutableView()`
+- Proxy invariant guard for frozen descriptors
+- 169 tests, ~95% statement coverage
+
+### Architecture
+- 5 API categories: Freeze / View / Snapshot / Isolation / Verification
+- File names match function names (kebab-case)
+- Shared internals: `freeze-deep-internal.ts` (freezeDeep + deepClone)
+
 ## [2.0.0] - 2026-04-08
 
 ### Breaking Changes

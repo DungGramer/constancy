@@ -6,7 +6,34 @@
 [![license](https://img.shields.io/npm/l/constancy.svg)](https://github.com/DungGramer/constancy/blob/master/LICENSE)
 [![test](https://img.shields.io/github/actions/workflow/status/DungGramer/constancy/ci.yml?label=tests)](https://github.com/DungGramer/constancy/actions)
 
-> Lightweight, zero-dependency TypeScript utility for making objects and arrays deeply immutable. Shallow and recursive freeze with full type safety.
+> Lightweight, zero-dependency TypeScript library for deep immutability with multi-level defense against tampering. Freeze, immutable views, snapshots, vaults, and structural hashing.
+
+## Critical Distinction: VIEW vs SNAPSHOT
+
+**This is the most important concept in constancy.**
+
+| API | Model | Data frozen? | Reference severed? | Use |
+|-----|-------|-------------|-------------------|----|
+| **`immutableView()`** | **VIEW** — Proxy blocks mutations through this reference | No — original still mutable | No — if you keep original ref, you can mutate | When you want to prevent access through this specific reference |
+| **`snapshot()`** | **SNAPSHOT** — Clone + freeze creates true immutability | Yes — data itself is frozen | Yes — clone is independent | When you need true data immutability |
+
+**Example:**
+```typescript
+const original = { count: 0 };
+
+// immutableView() is a VIEW — blocks mutations through proxy, but original still mutable
+const view = immutableView(original);
+view.count = 1;        // TypeError: object is immutable
+original.count = 1;    // Works! original is still mutable
+
+// snapshot() is a SNAPSHOT — independent frozen clone
+const snapshot = snapshot(original);
+snapshot.count = 1;    // TypeError: frozen
+original.count = 1;    // Doesn't affect snapshot
+```
+
+**Choose `immutableView()` for:** Runtime mutation prevention when you control the original reference.
+**Choose `snapshot()` for:** True data immutability, or when untrusted code could retain the original reference.
 
 ## Installation
 
@@ -18,195 +45,293 @@ yarn add constancy
 pnpm add constancy
 ```
 
-Requires Node.js >= 14.
+Requires Node.js >= 18.
 
 ## Quick Start
 
 ```typescript
-import constancy, { deepFreeze } from 'constancy';
+import { freezeShallow, deepFreeze, immutableView, snapshot, vault, tamperEvident } from 'constancy';
 
-// Shallow freeze — top-level properties only
-const config = constancy({ host: 'localhost', port: 3000 });
-config.port = 8080; // Ignored (TypeError in strict mode)
+// Freeze: Shallow freeze
+const config = freezeShallow({ host: 'localhost', port: 3000 });
+config.port = 8080; // Ignored (non-strict), throws in strict mode
 
-// Deep freeze — all nested properties recursively
-const state = deepFreeze({
-  user: { name: 'Alice', roles: ['admin'] },
-  settings: { theme: 'dark' },
-});
-state.user.name = 'Bob';       // Ignored
-state.user.roles.push('user'); // Ignored
+// Freeze: Deep freeze — recursive
+const state = deepFreeze({ user: { name: 'Alice', roles: ['admin'] } });
+state.user.roles.push('user'); // Throws in strict mode
+
+// View: Immutable proxy — throws, but original still mutable if retained
+const data = immutableView({ count: 0, items: [] });
+data.count = 1; // TypeError: object is immutable
+// ⚠️ Original reference is still mutable if you kept it!
+
+// Snapshot: snapshot() — clone + freeze, true immutability
+const locked = snapshot({ count: 0, items: [] });
+locked.count = 1; // TypeError: frozen
+// Original unaffected, reference severed
+
+// Isolation: Vault — closure isolation + copy-on-read
+const secret = vault({ apiKey: 'sk-123456' });
+const copy = secret.get(); // Fresh frozen copy each call
+secret.get() === secret.get(); // false — always new copy
+
+// Snapshot: Tamper-evident — hash verification vault
+const protected = tamperEvident({ version: '1.0.0', data: [1, 2, 3] });
+protected.assertIntact(); // Throws if hash mismatch
+const fingerprint = protected.fingerprint; // Original hash
 ```
 
 ## API Reference
 
-### `constancy<T>(val: T)`
+### Freeze (In-Place)
 
-Shallow-freezes an object or function using `Object.freeze()`. Primitives are returned unchanged.
+#### `freezeShallow<T>(val: T)` — Shallow Freeze
 
-**Returns:** `Readonly<T>` for objects/functions, `T` for primitives.
+Freezes only top-level properties using native `Object.freeze()`.
 
 ```typescript
-import constancy from 'constancy';
-
-constancy({ a: 1 });           // Readonly<{ a: number }>
-constancy([1, 2, 3]);          // readonly number[]
-constancy(() => 'hello');      // Frozen function (still callable)
-constancy('text');             // 'text' — unchanged
-constancy(42);                 // 42 — unchanged
-constancy(null);               // null — unchanged
+const obj = freezeShallow({ a: 1, b: { c: 2 } });
+obj.a = 2;      // Ignored
+obj.b.c = 3;    // Works — nested not frozen
 ```
 
-Nested objects are NOT frozen:
+#### `deepFreeze<T>(val: T)` — Recursive Freeze
+
+Recursively freezes all nested objects. Handles circular refs, Symbol keys, TypedArrays, and accessor descriptors.
 
 ```typescript
-const obj = constancy({ user: { name: 'Alice' } });
-obj.user.name = 'Bob'; // Works — nested is not frozen
-obj.user = {};          // Ignored — top-level is frozen
-```
-
-### `deepFreeze<T>(val: T)`
-
-Recursively freezes a value and all reachable nested objects. Handles:
-- Circular references (via WeakSet — already-visited nodes are skipped)
-- Symbol-keyed properties (via `Reflect.ownKeys()`)
-- TypedArrays (skipped — freezing non-empty TypedArrays throws natively)
-- Accessor descriptors (`get`/`set`) — skipped to avoid unintended invocation
-
-**Returns:** `DeepReadonly<T>` for objects, `T` for primitives.
-
-```typescript
-import { deepFreeze } from 'constancy';
-
-const obj = deepFreeze({
-  nested: { count: 0 },
-  tags: ['a', 'b'],
-});
+const obj = deepFreeze({ nested: { count: 0 }, tags: ['a'] });
 obj.nested.count = 1; // Ignored
-obj.tags.push('c');   // Ignored
+obj.tags.push('b');   // Ignored
+```
 
-// Circular references are safe
-const node: any = { value: 1 };
-node.self = node;
-deepFreeze(node); // No infinite loop
+### View (Proxy, No Clone)
+
+#### `immutableView<T>(obj: T)` — Proxy-Based VIEW
+
+Wraps object in a Proxy that throws `TypeError` on ANY mutation through this reference. Does NOT freeze or clone the original.
+
+**This is a VIEW, not a snapshot.** Original is still mutable if you retain the reference. Use `snapshot()` for true immutability.
+
+```typescript
+const data = immutableView({ items: [], config: { theme: 'dark' } });
+data.items.push(1);              // TypeError: object is immutable
+data.config.theme = 'light';     // TypeError: object is immutable
+
+const m = immutableView(new Map([['a', 1]]));
+m.set('b', 2);                   // TypeError: Cannot set: object is immutable
+m.get('a');                      // Works — read access allowed
+```
+
+#### `isImmutableView<T>(val: any)` — Check Immutable View
+
+Returns `true` if value is an immutable proxy.
+
+```typescript
+isImmutableView(immutableView({}));  // true
+isImmutableView({});                 // false
+isImmutableView(deepFreeze({}));     // false
+```
+
+#### `assertImmutableView<T>(val: T)` — Assert Immutable View
+
+Throws if value is not an immutable proxy.
+
+```typescript
+assertImmutableView(immutableView({}));  // OK
+assertImmutableView({});                 // TypeError
+```
+
+#### `immutableMapView<K, V>(map: Map<K, V>)` — Read-Only Map
+
+Wraps Map in a Proxy. All mutator methods throw.
+
+```typescript
+const m = immutableMapView(new Map([['a', 1], ['b', 2]]));
+m.get('a');  // 1
+m.set('c', 3); // TypeError
+m.delete('a'); // TypeError
+```
+
+#### `immutableSetView<T>(set: Set<T>)` — Read-Only Set
+
+Wraps Set in a Proxy. All mutator methods throw.
+
+```typescript
+const s = immutableSetView(new Set([1, 2, 3]));
+s.has(1);    // true
+s.add(4);    // TypeError
+s.delete(1); // TypeError
+```
+
+### Snapshot (Clone + Freeze)
+
+#### `snapshot<T>(value: T)` — Clone + Deep Freeze
+
+Creates a deep clone and recursively freezes every object. True immutability — original unaffected.
+
+```typescript
+const original = { user: { isVip: false } };
+const snap = snapshot(original);
+
+original.user.isVip = true;    // original mutated
+snap.user.isVip;               // false — snapshot unaffected
+snap.user.isVip = true;        // TypeError — frozen
+```
+
+#### `lock<T>(value: T)` — Alias for `snapshot()`
+
+Alternate name for `snapshot()`. Both are identical.
+
+```typescript
+const snap = lock({ count: 0 });  // Same as snapshot()
+```
+
+#### `secureSnapshot<T>(obj: T)` — Hardened Snapshot
+
+Vault with null prototype + getter-only descriptors. Max protection for critical data.
+
+```typescript
+const cfg = secureSnapshot({ db: { host: 'localhost', port: 5432 } });
+cfg.db.host;                              // 'localhost'
+cfg.db.host = 'evil';                     // TypeError (strict)
+Object.defineProperty(cfg, 'db', {value: null}); // TypeError — non-configurable
+```
+
+#### `tamperEvident<T>(val: T)` — Hash-Verified Snapshot
+
+Stores value in vault + computes djb2 structural hash. Detects any internal corruption.
+
+```typescript
+const protected = tamperEvident({ version: '1.0', data: [1, 2, 3] });
+const fingerprint = protected.fingerprint; // Original hash (base-36)
+
+// Safe access with automatic verification
+const copy = protected.get(); // Fresh frozen copy
+
+// Detect corruption
+protected.verify();           // true if intact
+protected.assertIntact();     // Throws TypeError if corrupted
+```
+
+### Isolation (Closure + Copy-on-Read)
+
+#### `vault<T>(val: T)` — Copy-on-Read Vault
+
+Stores a value in a sealed closure. Each `get()` call returns a fresh frozen copy. Reference extraction impossible.
+
+```typescript
+const secret = vault({ password: 'xyz', tokens: ['token1'] });
+const copy1 = secret.get();
+const copy2 = secret.get();
+copy1 === copy2; // false — new copy each time
+copy1.tokens.push('token2'); // Copy mutated, vault unchanged
+secret.get().tokens; // ['token1'] — original preserved
+```
+
+### Verification
+
+#### `isDeepFrozen<T>(val: T)` — Check if Deep Frozen
+
+Verifies object and all nested objects are frozen.
+
+```typescript
+const obj = deepFreeze({ nested: { count: 0 } });
+isDeepFrozen(obj);                          // true
+isDeepFrozen(freezeShallow({}));            // false (shallow only)
+const partial = { nested: deepFreeze({}) };
+isDeepFrozen(partial);                      // false (root not frozen)
+```
+
+#### `assertDeepFrozen<T>(val: T)` — Assert Deep Frozen
+
+Throws if value is not deeply frozen.
+
+```typescript
+assertDeepFrozen(deepFreeze({}));  // OK
+assertDeepFrozen({});              // TypeError
+```
+
+#### `checkRuntimeIntegrity()` — Detect Post-Import Tampering
+
+Verifies that Object.freeze and other builtins haven't been overridden post-import.
+
+```typescript
+const { intact, compromised } = checkRuntimeIntegrity();
+if (!intact) console.error('Environment compromised:', compromised);
 ```
 
 ### Types
 
 #### `DeepReadonly<T>`
-
-Recursively marks all properties as `readonly`. Handles objects, arrays, Maps, and Sets.
-
-```typescript
-import type { DeepReadonly } from 'constancy';
-
-type Config = DeepReadonly<{
-  db: { host: string; port: number };
-  tags: string[];
-}>;
-// Config.db.host is readonly, Config.tags is ReadonlyArray<string>
-```
+Recursively readonly type for objects, arrays, Maps, Sets.
 
 #### `Freezable`
+Union type: `object | Function`.
 
-Union type of values that can be frozen: `object | Function`.
+#### `Vault<T>`
+Interface for vault values: `{ readonly get: () => DeepReadonly<T> }`.
 
-```typescript
-import type { Freezable } from 'constancy';
+#### `TamperProofVault<T>`
+Interface for tamper-proof vaults: `{ readonly get, verify, assertIntact, fingerprint }`.
 
-function freeze(val: Freezable) {
-  return Object.freeze(val);
-}
-```
+## Security: Defense Levels
+
+| Level | API | Type | Mechanism | Original Mutable? | Use Case |
+|-------|-----|------|-----------|-------------------|----------|
+| 0 | `freezeShallow()` | Freeze | Shallow `Object.freeze()` | If nested | Top-level freeze only |
+| 0 | `deepFreeze()` | Freeze | Recursive freeze + cached builtins | Only with retained ref | Full graph immutability |
+| **1** | **`immutableView()`** | **View** | **Proxy traps** | **Yes, if you keep original** | **Runtime mutation blocking** |
+| 1.5 | **`snapshot()`** | **Snapshot** | **Clone + deep freeze** | **No — independent copy** | **True immutability** |
+| 1.5 | `immutableMapView/SetView()` | View | Proxy mutator blocking | If you keep original | Collection safety |
+| 2 | `vault()` | Snapshot | Closure isolation + copy-on-read | No — sealed | Absolute reference isolation |
+| 2.5 | `secureSnapshot()` | Snapshot | Null proto + getter-only + non-configurable | No — sealed | Prototype pollution defense |
+| 3 | `tamperEvident()` | Snapshot | Vault + djb2 hash verification | No — sealed | Data tampering detection |
+
+### Attack Vectors Defended
+
+- ✅ `Object.freeze` override → cached builtins captured at module load
+- ✅ Prototype pollution → null proto in `secureSnapshot()`, own-property precedence
+- ✅ Internal slot mutations → Proxy method blocking in `immutableView()`
+- ✅ Array mutations → blocked via Proxy in `immutableView()`
+- ✅ Property descriptor manipulation → non-configurable in `secureSnapshot()`
+- ✅ Reference extraction → vault copy isolation in `vault()` / `tamperEvident()`
+- ✅ Data tampering → hash verification in `tamperEvident()`
+- ✅ Silent mutations → Proxy throws in strict + non-strict in `immutableView()`
 
 ## TypeScript Usage
 
-Named and default imports are both supported:
-
 ```typescript
-// Default import
-import constancy from 'constancy';
-
-// Named imports
-import { constancy, deepFreeze } from 'constancy';
-import type { DeepReadonly, Freezable } from 'constancy';
+import { freezeShallow, deepFreeze, immutableView, snapshot, vault, tamperEvident } from 'constancy';
+import type { DeepReadonly, Vault, TamperProofVault } from 'constancy';
 ```
 
 CommonJS:
 
 ```javascript
-const { constancy, deepFreeze } = require('constancy');
+const { freezeShallow, deepFreeze, immutableView, snapshot, vault, tamperEvident } = require('constancy');
 ```
-
-## Migration from v1
-
-### Breaking changes
-
-| v1 | v2 |
-|---|---|
-| Node.js >= 10 | Node.js >= 14 required |
-| CommonJS-first (`index.js`) | ESM-first (`"type": "module"`) |
-| `Object.freeze` polyfill included | Removed — native in all supported environments |
-| `import constancy from 'constancy'` | Same — default import still works |
-| No `deepFreeze` | `deepFreeze()` added |
-| No `DeepReadonly<T>` | Type exported |
-
-### Import changes
-
-v1 root entry (`index.js`, `index.d.ts`) is removed. Imports via the package name continue to work through the `exports` field:
-
-```typescript
-// Still works in v2
-import constancy from 'constancy';
-import { constancy, deepFreeze } from 'constancy';
-```
-
-Direct path imports (`from 'constancy/dist/...'`) are not supported.
 
 ## Development
 
 ```bash
-# Build ESM + CJS bundles
-npm run build
-
-# Run tests
-npm test
-
-# Watch mode
-npm run test:watch
-
-# Coverage report
-npm run test:coverage
-
-# Type check
-npm run typecheck
-```
-
-### Project structure
-
-```
-src/
-├── index.ts        — barrel exports
-├── constancy.ts    — shallow freeze
-├── deep-freeze.ts  — recursive deep freeze
-├── types.ts        — DeepReadonly<T>, Freezable
-└── utils.ts        — isFreezable(), getOwnKeys()
-
-tests/
-├── constancy.test.ts     — 19 tests
-└── deep-freeze.test.ts   — 11 tests
-
-dist/               — built output (ESM + CJS + .d.ts)
+npm run build       # ESM + CJS bundles
+npm test            # Run tests (169 tests)
+npm run test:watch  # Watch mode
+npm run test:coverage # Coverage report (96.46% stmts, 92.59% branch)
+npm run typecheck   # Type check
 ```
 
 ## Why Constancy?
 
-- **Zero dependencies** — no supply chain risk, no bloat
-- **Tiny** — under 1KB minified + gzipped
-- **Type-safe** — `Readonly<T>` and `DeepReadonly<T>` inferred automatically
-- **Safe** — handles circular refs, Symbol keys, TypedArrays, getters
+- **Zero dependencies** — no supply chain risk
+- **Tiny** — ESM 5.3KB, CJS 5.9KB
+- **Type-safe** — `Readonly<T>`, `DeepReadonly<T>`, conditional types
+- **Layered security** — 5 categories (freeze, view, snapshot, isolation, verification)
 - **Dual format** — ESM + CJS with conditional exports
-- **Well-tested** — 30 tests, ~97% coverage
+- **Comprehensive** — 169 tests, 96.46% coverage
+- **Tamper-resistant** — cached builtins protect against post-import attacks
+- **Clear mental model** — VIEW (`immutableView()`) vs SNAPSHOT (`snapshot()`) distinction
 
 ## License
 

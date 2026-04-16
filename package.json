@@ -1,7 +1,7 @@
 {
   "name": "constancy",
-  "version": "2.0.0",
-  "description": "Lightweight utility to make objects and arrays immutable with shallow and deep freeze",
+  "version": "3.0.0",
+  "description": "Zero-dependency immutability toolkit: freeze, view, snapshot, vault, and integrity verification",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -25,7 +25,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "engines": {
-    "node": ">=14"
+    "node": ">=18"
   },
   "keywords": [
     "constancy",

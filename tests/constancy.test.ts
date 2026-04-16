@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { constancy } from '../src/index';
+import { freezeShallow as constancy } from '../src/index';
 
 describe('constancy - shallow freeze', () => {
   it('should have Object.freeze.length of 1', () => {

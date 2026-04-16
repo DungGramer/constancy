@@ -224,6 +224,91 @@ describe('isImmutable', () => {
   });
 });
 
+describe('getOwnPropertyDescriptor bypass protection', () => {
+  it('should wrap descriptor values in proxy', () => {
+    const obj = { nested: { count: 0 } };
+    const view = immutable(obj);
+    const desc = Object.getOwnPropertyDescriptor(view, 'nested')!;
+    expect(() => { (desc.value as any).count = 999; }).toThrow(TypeError);
+  });
+
+  it('should not wrap frozen descriptor values (Proxy invariant)', () => {
+    const obj = Object.freeze({ nested: Object.freeze({ count: 0 }) });
+    const view = immutable(obj);
+    const desc = Object.getOwnPropertyDescriptor(view, 'nested')!;
+    // Must return exact value for non-configurable+non-writable (invariant)
+    expect(desc.value).toBe(obj.nested);
+  });
+});
+
+describe('Map/Set value wrapping in immutableView', () => {
+  it('should wrap Map.get() return values', () => {
+    const m = new Map([['key', { secret: true }]]);
+    const view = immutable(m);
+    const val = view.get('key')!;
+    expect(() => { (val as any).secret = false; }).toThrow(TypeError);
+  });
+
+  it('should wrap Map iterator values', () => {
+    const m = new Map([['k', { x: 1 }]]);
+    const view = immutable(m);
+    for (const [, v] of view) {
+      expect(() => { (v as any).x = 2; }).toThrow(TypeError);
+    }
+  });
+
+  it('should wrap Map.values()', () => {
+    const m = new Map([['k', { x: 1 }]]);
+    const view = immutable(m);
+    for (const v of view.values()) {
+      expect(() => { (v as any).x = 2; }).toThrow(TypeError);
+    }
+  });
+
+  it('should wrap Map.forEach() values', () => {
+    const m = new Map([['k', { x: 1 }]]);
+    const view = immutable(m);
+    view.forEach((v) => {
+      expect(() => { (v as any).x = 2; }).toThrow(TypeError);
+    });
+  });
+
+  it('should wrap Set iterator values', () => {
+    const s = new Set([{ x: 1 }]);
+    const view = immutable(s);
+    for (const v of view) {
+      expect(() => { (v as any).x = 2; }).toThrow(TypeError);
+    }
+  });
+
+  it('should wrap Set.forEach() values', () => {
+    const s = new Set([{ x: 1 }]);
+    const view = immutable(s);
+    view.forEach((v) => {
+      expect(() => { (v as any).x = 2; }).toThrow(TypeError);
+    });
+  });
+
+  it('should still block Map mutation methods', () => {
+    const m = new Map([['k', 'v']]);
+    const view = immutable(m);
+    expect(() => (view as any).set('k', 'new')).toThrow(TypeError);
+    expect(() => (view as any).delete('k')).toThrow(TypeError);
+    expect(() => (view as any).clear()).toThrow(TypeError);
+  });
+});
+
+describe('getPrototypeOf bypass protection', () => {
+  it('should wrap prototype in proxy', () => {
+    const proto = { admin: false };
+    const obj = Object.create(proto);
+    obj.name = 'Alice';
+    const view = immutable(obj);
+    const viewProto = Object.getPrototypeOf(view);
+    expect(() => { viewProto.admin = true; }).toThrow(TypeError);
+  });
+});
+
 describe('assertImmutableView', () => {
   it('should not throw for immutable view proxy', () => {
     const view = immutable({ a: 1 });

@@ -92,6 +92,11 @@ export class ImmutableMap<K, V> implements ReadonlyMap<K, V> {
  * A read-only wrapper around a `Set` that implements `ReadonlySet`.
  * Mutation methods (`add`, `delete`, `clear`) are simply absent.
  * Object values are deep-cloned at construction and deep-frozen on first read.
+ *
+ * **Note:** `has()` uses reference identity. Since object values are deep-cloned
+ * at construction, `has(originalObj)` returns false — the cloned element has a
+ * different reference. Use `has()` only for primitive values or the exact cloned
+ * references obtained from the set's iterators.
  */
 export class ImmutableSet<T> implements ReadonlySet<T> {
   readonly #set: Set<T>;

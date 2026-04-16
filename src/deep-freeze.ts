@@ -10,10 +10,15 @@ import { freezeDeep } from './freeze-deep-internal';
  * nested properties are frozen in bottom-up order (children before parent)
  * so that the final frozen graph is fully immutable.
  *
- * **Note:** Map/Set instances are frozen at the object level, but their
- * internal slots (.set(), .add(), .delete()) remain functional since they
- * bypass ordinary property access. Use immutable wrappers if you need
- * fully immutable Map/Set behavior.
+ * **Known limitations (by design):**
+ * - **Map/Set:** Internal slots (.set(), .add(), .delete()) remain functional
+ *   after freeze — use `immutableMapView()`/`immutableSetView()` for full immutability.
+ * - **TypedArrays:** Byte data remains writable (non-empty TypedArrays cannot be
+ *   frozen). The container property is frozen but indexed writes still work.
+ * - **Getters:** Accessor properties are skipped to avoid side effects during freeze.
+ *   Objects returned by getters are not frozen.
+ * - **Prototypes:** Only own properties are traversed. Inherited properties from
+ *   the prototype chain remain mutable. Use `secureSnapshot()` for null-prototype objects.
  *
  * @param val - Value to deep-freeze
  * @returns Deep-frozen value typed as DeepReadonly<T> for objects,

@@ -27,7 +27,9 @@ export function deepClone<T>(value: T): T {
   }
 }
 
-/** Recursively freeze an object graph; guards circular refs via WeakSet. */
+/** Recursively freeze an object graph; guards circular refs via WeakSet.
+ *  Skips: TypedArray byte data, accessor (getter/setter) properties,
+ *  prototype chain, Map/Set internal slots. See deepFreeze() JSDoc. */
 export function freezeDeep(obj: object, seen: WeakSet<object> = new WeakSet()): void {
   if (seen.has(obj)) return;
   seen.add(obj);

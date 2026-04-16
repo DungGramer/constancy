@@ -87,7 +87,7 @@ jobs:
       security-events: write
     steps:
       - uses: actions/checkout@v6
-      - uses: aquasecurity/trivy-action@master
+      - uses: aquasecurity/trivy-action@0.31.0
         with:
           token: ${{ github.token }}
           scan-type: fs

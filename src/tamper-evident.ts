@@ -22,7 +22,7 @@ export interface TamperEvidentVault<T> {
 function hashString(str: string): string {
   let hash = 5381;
   for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) + hash + str.charCodeAt(i)) | 0;
+    hash = Math.trunc((hash << 5) + hash + (str.codePointAt(i) ?? 0));
   }
   return (hash >>> 0).toString(36);
 }
@@ -35,21 +35,17 @@ function stableStringify(val: unknown): string {
   if (Array.isArray(val)) {
     return '[' + val.map(stableStringify).join(',') + ']';
   }
-  const allKeys = Reflect.ownKeys(val as object);
+  const obj = val as Record<string | symbol, unknown>;
+  const allKeys = Reflect.ownKeys(obj);
   // Prefix symbol keys with \0S: to avoid collision with string keys
-  // e.g. Symbol("a") → "\0S:Symbol(a)", string "Symbol(a)" → "Symbol(a)"
-  const entries = allKeys.map(k => {
-    const serializedKey = typeof k === 'symbol' ? '\0S:' + k.toString() : String(k);
-    const value = (val as Record<string | symbol, unknown>)[k];
-    return serializedKey;
-  });
-  entries.sort();
+  const entries = allKeys
+    .map(k => typeof k === 'symbol' ? '\0S:' + k.toString() : String(k))
+    .sort((a, b) => a.localeCompare(b));
   const pairs = entries.map(sk => {
-    // Reverse lookup: find the original key for this serialized key
     const origKey = allKeys.find(k =>
       (typeof k === 'symbol' ? '\0S:' + k.toString() : String(k)) === sk
     )!;
-    return JSON.stringify(sk) + ':' + stableStringify((val as Record<string | symbol, unknown>)[origKey]);
+    return JSON.stringify(sk) + ':' + stableStringify(obj[origKey]);
   });
   return '{' + pairs.join(',') + '}';
 }

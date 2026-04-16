@@ -25,7 +25,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "keywords": [
     "constancy",

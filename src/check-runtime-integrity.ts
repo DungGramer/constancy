@@ -1,4 +1,8 @@
-import { _freeze, _isFrozen } from './cached-builtins';
+import {
+  _freeze, _isFrozen,
+  _getOwnPropertyDescriptor, _defineProperty,
+  _create, _ownKeys, _isView
+} from './cached-builtins';
 
 export interface IntegrityResult {
   readonly intact: boolean;
@@ -19,6 +23,13 @@ export function checkRuntimeIntegrity(): IntegrityResult {
 
   if (Object.freeze !== _freeze) compromised.push('Object.freeze');
   if (Object.isFrozen !== _isFrozen) compromised.push('Object.isFrozen');
+  if (Object.getOwnPropertyDescriptor !== _getOwnPropertyDescriptor)
+    compromised.push('Object.getOwnPropertyDescriptor');
+  if (Object.defineProperty !== _defineProperty)
+    compromised.push('Object.defineProperty');
+  if (Object.create !== _create) compromised.push('Object.create');
+  if (Reflect.ownKeys !== _ownKeys) compromised.push('Reflect.ownKeys');
+  if (ArrayBuffer.isView !== _isView) compromised.push('ArrayBuffer.isView');
   if (typeof Proxy !== 'function') compromised.push('Proxy');
   if (typeof Reflect !== 'object' || Reflect === null) compromised.push('Reflect');
 

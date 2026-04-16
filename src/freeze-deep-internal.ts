@@ -11,9 +11,20 @@ declare function structuredClone<T>(value: T): T;
 /**
  * Deep clone via structuredClone. Requires Node >= 18 or modern browser.
  * Preserves: Date, Map, Set, RegExp, ArrayBuffer, circular refs, TypedArrays.
+ * Throws TypeError for non-cloneable values (functions, Symbols, DOM nodes).
  */
 export function deepClone<T>(value: T): T {
-  return structuredClone(value);
+  try {
+    return structuredClone(value);
+  } catch (err) {
+    if ((err as Error)?.name === 'DataCloneError') {
+      throw new TypeError(
+        `deepClone: value contains non-cloneable data (functions, Symbols, DOM nodes). ` +
+        `Use immutableView() for non-cloneable objects, or remove non-cloneable properties first.`
+      );
+    }
+    throw err;
+  }
 }
 
 /** Recursively freeze an object graph; guards circular refs via WeakSet. */

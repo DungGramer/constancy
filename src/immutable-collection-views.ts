@@ -1,17 +1,32 @@
 /**
  * Immutable wrappers for Map and Set that expose only read operations,
  * blocking all mutation methods at the type level.
+ *
+ * Deep immutability: object values are deep-frozen on read (lazy). The
+ * constructor uses structuredClone for object values so source references
+ * remain independently mutable.
+ *
+ * Note: structuredClone cannot clone functions or Symbols — values containing
+ * these will throw DataCloneError at construction, same as snapshot()/vault().
  */
+
+import { freezeDeep, deepClone } from './freeze-deep-internal';
+import { isFreezable } from './utils';
 
 /**
  * A read-only wrapper around a `Map` that implements `ReadonlyMap`.
  * Mutation methods (`set`, `delete`, `clear`) are simply absent.
+ * Object values are deep-cloned at construction and deep-frozen on first read.
  */
 export class ImmutableMap<K, V> implements ReadonlyMap<K, V> {
   readonly #map: Map<K, V>;
 
   constructor(source: Map<K, V>) {
-    this.#map = new Map(source); // Defensive copy — caller can't mutate via original
+    // Clone object values so freezing our copy does not affect the source
+    this.#map = new Map();
+    for (const [k, v] of source) {
+      this.#map.set(k, isFreezable(v) ? (deepClone(v) as V) : v);
+    }
   }
 
   get size(): number {
@@ -19,7 +34,12 @@ export class ImmutableMap<K, V> implements ReadonlyMap<K, V> {
   }
 
   get(key: K): V | undefined {
-    return this.#map.get(key);
+    const val = this.#map.get(key);
+    // Lazy deep-freeze on access — idempotent, cheap on repeat reads
+    if (val !== undefined && isFreezable(val)) {
+      freezeDeep(val as object);
+    }
+    return val;
   }
 
   has(key: K): boolean {
@@ -30,36 +50,58 @@ export class ImmutableMap<K, V> implements ReadonlyMap<K, V> {
     return this.#map.keys();
   }
 
-  values(): MapIterator<V> {
-    return this.#map.values();
+  values(): IterableIterator<V> {
+    return this.#frozenValues();
   }
 
-  entries(): MapIterator<[K, V]> {
-    return this.#map.entries();
+  entries(): IterableIterator<[K, V]> {
+    return this.#frozenEntries();
   }
 
   forEach(callbackfn: (value: V, key: K, map: ReadonlyMap<K, V>) => void): void {
-    this.#map.forEach((value, key) => callbackfn(value, key, this));
+    this.#map.forEach((value, key) => {
+      if (isFreezable(value)) freezeDeep(value as object);
+      callbackfn(value, key, this);
+    });
   }
 
-  [Symbol.iterator](): MapIterator<[K, V]> {
-    return this.#map[Symbol.iterator]();
+  [Symbol.iterator](): IterableIterator<[K, V]> {
+    return this.#frozenEntries();
   }
 
   get [Symbol.toStringTag](): string {
     return 'ImmutableMap';
+  }
+
+  *#frozenValues(): Generator<V, void, unknown> {
+    for (const val of this.#map.values()) {
+      if (isFreezable(val)) freezeDeep(val as object);
+      yield val;
+    }
+  }
+
+  *#frozenEntries(): Generator<[K, V], void, unknown> {
+    for (const [key, val] of this.#map.entries()) {
+      if (isFreezable(val)) freezeDeep(val as object);
+      yield [key, val];
+    }
   }
 }
 
 /**
  * A read-only wrapper around a `Set` that implements `ReadonlySet`.
  * Mutation methods (`add`, `delete`, `clear`) are simply absent.
+ * Object values are deep-cloned at construction and deep-frozen on first read.
  */
 export class ImmutableSet<T> implements ReadonlySet<T> {
   readonly #set: Set<T>;
 
   constructor(source: Set<T>) {
-    this.#set = new Set(source); // Defensive copy — caller can't mutate via original
+    // Clone object values so freezing our copy does not affect the source
+    this.#set = new Set();
+    for (const v of source) {
+      this.#set.add(isFreezable(v) ? (deepClone(v) as T) : v);
+    }
   }
 
   get size(): number {
@@ -70,28 +112,45 @@ export class ImmutableSet<T> implements ReadonlySet<T> {
     return this.#set.has(value);
   }
 
-  keys(): SetIterator<T> {
-    return this.#set.keys();
+  keys(): IterableIterator<T> {
+    return this.#frozenValues();
   }
 
-  values(): SetIterator<T> {
-    return this.#set.values();
+  values(): IterableIterator<T> {
+    return this.#frozenValues();
   }
 
-  entries(): SetIterator<[T, T]> {
-    return this.#set.entries();
+  entries(): IterableIterator<[T, T]> {
+    return this.#frozenEntries();
   }
 
   forEach(callbackfn: (value: T, value2: T, set: ReadonlySet<T>) => void): void {
-    this.#set.forEach((value) => callbackfn(value, value, this));
+    this.#set.forEach((value) => {
+      if (isFreezable(value)) freezeDeep(value as object);
+      callbackfn(value, value, this);
+    });
   }
 
-  [Symbol.iterator](): SetIterator<T> {
-    return this.#set[Symbol.iterator]();
+  [Symbol.iterator](): IterableIterator<T> {
+    return this.#frozenValues();
   }
 
   get [Symbol.toStringTag](): string {
     return 'ImmutableSet';
+  }
+
+  *#frozenValues(): Generator<T, void, unknown> {
+    for (const val of this.#set.values()) {
+      if (isFreezable(val)) freezeDeep(val as object);
+      yield val;
+    }
+  }
+
+  *#frozenEntries(): Generator<[T, T], void, unknown> {
+    for (const val of this.#set.values()) {
+      if (isFreezable(val)) freezeDeep(val as object);
+      yield [val, val];
+    }
   }
 }
 

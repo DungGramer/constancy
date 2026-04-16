@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { immutableView as immutable, isImmutableView as isImmutable } from '../src/index';
+import { immutableView as immutable, isImmutableView as isImmutable, assertImmutableView } from '../src/index';
 
 describe('immutable - mutation blocking', () => {
   it('throws on property set', () => {
@@ -221,5 +221,31 @@ describe('isImmutable', () => {
     expect(isImmutable(42)).toBe(false);
     expect(isImmutable(null)).toBe(false);
     expect(isImmutable(undefined)).toBe(false);
+  });
+});
+
+describe('assertImmutableView', () => {
+  it('should not throw for immutable view proxy', () => {
+    const view = immutable({ a: 1 });
+    expect(() => assertImmutableView(view)).not.toThrow();
+  });
+
+  it('should throw TypeError for plain object', () => {
+    expect(() => assertImmutableView({ a: 1 })).toThrow(TypeError);
+    expect(() => assertImmutableView({ a: 1 })).toThrow('Not an immutable view');
+  });
+
+  it('should throw TypeError for frozen object', () => {
+    expect(() => assertImmutableView(Object.freeze({ a: 1 }))).toThrow(TypeError);
+  });
+
+  it('should throw TypeError for primitives', () => {
+    expect(() => assertImmutableView(42)).toThrow(TypeError);
+    expect(() => assertImmutableView('str')).toThrow(TypeError);
+    expect(() => assertImmutableView(null)).toThrow(TypeError);
+  });
+
+  it('should include label in error message', () => {
+    expect(() => assertImmutableView({}, 'config')).toThrow('config: Not an immutable view');
   });
 });

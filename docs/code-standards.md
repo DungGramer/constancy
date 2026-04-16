@@ -106,7 +106,7 @@ src/
 ├── verification.ts                    — isDeepFrozen(), assertDeepFrozen()
 ├── check-runtime-integrity.ts         — checkRuntimeIntegrity() detection
 ├── types.ts                           — DeepReadonly<T>, Freezable, Vault<T>, etc.
-└── utils.ts                           — isFreezable(), getOwnKeys()
+└── utils.ts                           — isFreezable()
 ```
 
 Each file has single responsibility. Shared utilities go in `utils.ts`. Cached references in `cached-builtins.ts`. Exports grouped in `index.ts` by category: Freeze, View, Snapshot, Isolation, Verification.
@@ -116,7 +116,7 @@ Each file has single responsibility. Shared utilities go in `utils.ts`. Cached r
 ```typescript
 // 1. Imports
 import type { DeepReadonly } from './types';
-import { isFreezable, getOwnKeys } from './utils';
+import { isFreezable } from './utils';
 
 // 2. Module-level constants (if any)
 const TYPED_ARRAY_CONSTRUCTORS = new Set([...]);

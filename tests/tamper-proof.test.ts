@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { tamperEvident as tamperProof } from '../src/index';
+import { tamperEvident as tamperProof, tamperEvident } from '../src/index';
 
 describe('tamperProof - hash verification', () => {
   it('get() returns correct values', () => {
@@ -67,5 +67,51 @@ describe('tamperProof - hash verification', () => {
     original.isVip = true;
     expect(v.get().isVip).toBe(false);
     expect(v.verify()).toBe(true);
+  });
+});
+
+describe('stableStringify edge cases', () => {
+  it('should handle circular references without stack overflow', () => {
+    const obj: Record<string, unknown> = { a: 1 };
+    obj['self'] = obj;
+    const te = tamperEvident(obj);
+    expect(te.verify()).toBe(true);
+    expect(() => te.fingerprint).not.toThrow();
+  });
+
+  it('should distinguish NaN from null', () => {
+    const a = tamperEvident({ v: NaN });
+    const b = tamperEvident({ v: null });
+    expect(a.fingerprint).not.toBe(b.fingerprint);
+  });
+
+  it('should distinguish Infinity from null', () => {
+    const a = tamperEvident({ v: Infinity });
+    const b = tamperEvident({ v: null });
+    expect(a.fingerprint).not.toBe(b.fingerprint);
+  });
+
+  it('should distinguish -Infinity from Infinity', () => {
+    const a = tamperEvident({ v: Infinity });
+    const b = tamperEvident({ v: -Infinity });
+    expect(a.fingerprint).not.toBe(b.fingerprint);
+  });
+
+  it('should distinguish undefined from string "undefined"', () => {
+    const a = tamperEvident({ v: undefined });
+    const b = tamperEvident({ v: 'undefined' });
+    expect(a.fingerprint).not.toBe(b.fingerprint);
+  });
+
+  it('should not collide symbol keys with crafted string keys', () => {
+    const sym = Symbol('id');
+    const a = tamperEvident({ [sym]: 1 });
+    // Test both old-style prefix and new-style crafted keys
+    const b = tamperEvident({ '\0S:Symbol(id)': 1 });
+    const c = tamperEvident({ '\0\0sym:Symbol(id)': 1 });
+    const d = tamperEvident({ 'Symbol(id)': 1 });
+    expect(a.fingerprint).not.toBe(b.fingerprint);
+    expect(a.fingerprint).not.toBe(c.fingerprint);
+    expect(a.fingerprint).not.toBe(d.fingerprint);
   });
 });

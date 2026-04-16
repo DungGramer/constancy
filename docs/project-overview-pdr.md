@@ -4,7 +4,7 @@
 
 **Constancy** is a lightweight, zero-dependency TypeScript utility that makes objects and arrays immutable through five API categories: freeze (shallow/deep), immutable views (proxy-based), snapshots (clone+freeze), vaults (closure isolation), and verification utilities.
 
-**Current Version:** 2.0.0
+**Current Version:** 3.0.0
 **License:** MIT
 **Repository:** https://github.com/DungGramer/constancy
 **npm:** https://www.npmjs.com/package/constancy

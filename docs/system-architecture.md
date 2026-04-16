@@ -49,7 +49,7 @@ Constancy is a multi-level immutability library with 4 defense levels: freeze (L
          
      → verification.ts (isDeepFrozen, assertDeepFrozen)
      → check-runtime-integrity.ts (checkRuntimeIntegrity)
-     → utils.ts (isFreezable, getOwnKeys)
+     → utils.ts (isFreezable)
      → types.ts (DeepReadonly, Vault, TamperProofVault)
 ```
 
@@ -325,7 +325,7 @@ No circular dependencies.
 | `verification.ts` | isDeepFrozen() + assertDeepFrozen() |
 | `check-runtime-integrity.ts` | Detect post-import builtin tampering |
 | `types.ts` | DeepReadonly<T>, Vault<T>, TamperProofVault<T>, etc. |
-| `utils.ts` | isFreezable(), getOwnKeys() |
+| `utils.ts` | isFreezable() |
 
 ---
 

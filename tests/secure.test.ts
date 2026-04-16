@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { secureSnapshot as secure } from '../src/index';
+import { secureSnapshot as secure, secureSnapshot } from '../src/index';
 
 describe('secure - getter-only + non-configurable', () => {
   it('properties readable via getter', () => {
@@ -70,5 +70,22 @@ describe('secure - getter-only + non-configurable', () => {
     const result = Reflect.set(obj, 'isVip', true);
     expect(result).toBe(false);
     expect(obj.isVip).toBe(false);
+  });
+});
+
+describe('secureSnapshot nested non-plain', () => {
+  it('should throw TypeError with property name for nested Date', () => {
+    expect(() => secureSnapshot({ createdAt: new Date() } as any)).toThrow(TypeError);
+    expect(() => secureSnapshot({ createdAt: new Date() } as any)).toThrow(/createdAt/);
+  });
+
+  it('should throw TypeError with property name for nested Map', () => {
+    expect(() => secureSnapshot({ data: new Map() } as any)).toThrow(TypeError);
+    expect(() => secureSnapshot({ data: new Map() } as any)).toThrow(/data/);
+  });
+
+  it('should throw TypeError with property name for nested Set', () => {
+    expect(() => secureSnapshot({ tags: new Set() } as any)).toThrow(TypeError);
+    expect(() => secureSnapshot({ tags: new Set() } as any)).toThrow(/tags/);
   });
 });

@@ -60,3 +60,9 @@ describe('vault - closure isolation', () => {
     expect(v.get().isVip).toBe(false); // vault unaffected
   });
 });
+
+describe('vault error handling', () => {
+  it('should throw TypeError for objects containing functions', () => {
+    expect(() => vault({ fn: () => {} })).toThrow(TypeError);
+  });
+});

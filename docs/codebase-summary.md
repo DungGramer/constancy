@@ -5,13 +5,13 @@
 **Constancy** is a lightweight TypeScript utility library for deep immutability with multi-level security defenses. Zero dependencies, dual ESM/CJS export, 169 tests, 96.46% coverage.
 
 **Repository:** https://github.com/DungGramer/constancy
-**Version:** 2.0.0
+**Version:** 3.0.0
 **License:** MIT
 **Author:** DungGramer
 **Size:** ESM 5.3KB, CJS 5.9KB
 **Tests:** 169 (12 test files, 1771 lines)
 **Coverage:** 96.46% stmts, 92.59% branch, 94.33% funcs
-**Node.js:** >= 14
+**Node.js:** >= 18
 
 ---
 
@@ -33,19 +33,19 @@ constancy/
 │   ├── verification.ts               # Verification utilities (40 lines)
 │   ├── check-runtime-integrity.ts    # Runtime integrity checks (18 lines)
 │   ├── types.ts                      # DeepReadonly<T>, Vault, TamperProofVault (17 lines)
-│   └── utils.ts                      # isFreezable(), getOwnKeys() (18 lines)
+│   └── utils.ts                      # isFreezable() (18 lines)
 ├── tests/
 │   ├── freeze-shallow.test.ts        # 19 tests (shallow freeze)
 │   ├── deep-freeze.test.ts           # 11 tests (recursive freeze)
 │   ├── cached-builtins.test.ts       # 3 tests (tamper resistance)
-│   ├── immutable-view.test.ts        # 34 tests (proxy immutability)
+│   ├── immutable-proxy.test.ts       # 34 tests (proxy immutability)
 │   ├── immutable-collection-views.test.ts # 14 tests (Map/Set)
-│   ├── snapshot.test.ts              # 9 tests (snapshot freeze)
+│   ├── lock.test.ts                  # 9 tests (snapshot freeze)
 │   ├── vault.test.ts                 # 9 tests (copy-on-read)
-│   ├── secure-snapshot.test.ts       # 9 tests (null proto + getters)
-│   ├── tamper-evident.test.ts        # 11 tests (hash verification)
-│   ├── verification.test.ts          # 12 tests (verification utils)
-│   ├── check-runtime-integrity.test.ts # 4 tests (builtin integrity)
+│   ├── secure.test.ts                # 9 tests (null proto + getters)
+│   ├── tamper-proof.test.ts          # 11 tests (hash verification)
+│   ├── verify.test.ts                # 12 tests (verification utils)
+│   ├── runtime-integrity.test.ts     # 4 tests (builtin integrity)
 │   └── api-protection.test.ts        # 34 tests (mutation defense)
 ├── dist/                              # Build output (generated)
 │   ├── index.js                       # ESM bundle
@@ -173,7 +173,6 @@ Type definitions:
 #### `src/utils.ts`
 Utility functions:
 - `isFreezable(val)` — Type guard: returns true for objects and functions (not null/undefined)
-- `getOwnKeys(obj)` — Wraps `Reflect.ownKeys()` for string + symbol coverage
 
 ---
 
@@ -202,7 +201,7 @@ Utility functions:
 
 #### Immutable View Layer Tests
 
-##### `tests/immutable-view.test.ts` (34 tests)
+##### `tests/immutable-proxy.test.ts` (34 tests)
 - Proxy creation and caching
 - Property access and mutation blocking
 - Mutator method blocking (Map, Set, Array, Date)
@@ -220,7 +219,7 @@ Utility functions:
 
 #### Snapshot Layer Tests
 
-##### `tests/snapshot.test.ts` (9 tests)
+##### `tests/lock.test.ts` (9 tests)
 - Closure isolation (no reference escape)
 - Copy-on-read behavior (different instance per get())
 - Frozen copies (all copies are deeply frozen)
@@ -228,7 +227,7 @@ Utility functions:
 - Original mutations don't affect snapshot
 - Idempotency (get() always safe)
 
-##### `tests/secure-snapshot.test.ts` (9 tests)
+##### `tests/secure.test.ts` (9 tests)
 - Null prototype chain (no inherited properties)
 - Getter-only descriptors (no value field)
 - Non-configurable properties (cannot redefine)
@@ -236,7 +235,7 @@ Utility functions:
 - Prototype pollution immunity
 - Property descriptor manipulation blocked
 
-##### `tests/tamper-evident.test.ts` (11 tests)
+##### `tests/tamper-proof.test.ts` (11 tests)
 - Vault isolation (copy-on-read)
 - Hash creation (djb2 deterministic)
 - Fingerprint generation (base-36 encoding)
@@ -258,7 +257,7 @@ Utility functions:
 
 #### Verification Utilities Tests
 
-##### `tests/verification.test.ts` (12 tests)
+##### `tests/verify.test.ts` (12 tests)
 - `isDeepFrozen()` detects frozen objects
 - `isDeepFrozen()` rejects partially frozen
 - `isDeepFrozen()` handles circular refs
@@ -267,7 +266,7 @@ Utility functions:
 - `assertDeepFrozen()` rejects non-frozen
 - `assertDeepFrozen()` throws on failure
 
-##### `tests/check-runtime-integrity.test.ts` (4 tests)
+##### `tests/runtime-integrity.test.ts` (4 tests)
 - Post-import builtin override detection
 - Detailed integrity issue reporting
 - Success case when environment clean

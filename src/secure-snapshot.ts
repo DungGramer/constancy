@@ -55,9 +55,22 @@ export function secureSnapshot<T extends Record<string, unknown>>(value: T): Rea
     const raw: unknown = desc.value;
 
     // Recursively secure nested objects; leave primitives as-is
-    const secured = (raw !== null && typeof raw === 'object')
-      ? secureSnapshot(raw as Record<string, unknown>)
-      : raw;
+    let secured: unknown;
+    if (raw !== null && typeof raw === 'object') {
+      try {
+        secured = secureSnapshot(raw as Record<string, unknown>);
+      } catch (err) {
+        if (err instanceof TypeError) {
+          throw new TypeError(
+            `secureSnapshot(): property "${String(key)}" contains a ${(raw as object).constructor?.name ?? 'non-plain object'}. ` +
+            `secureSnapshot() only supports plain objects. Nested Date, Map, Set, Array, etc. are not supported.`
+          );
+        }
+        throw err;
+      }
+    } else {
+      secured = raw;
+    }
 
     store.set(key, secured);
 

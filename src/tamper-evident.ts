@@ -1,5 +1,5 @@
 import type { DeepReadonly } from './types';
-import { _freeze } from './cached-builtins';
+import { _freeze, _ownKeys } from './cached-builtins';
 import { freezeDeep, deepClone } from './freeze-deep-internal';
 import { isFreezable } from './utils';
 
@@ -27,27 +27,51 @@ function hashString(str: string): string {
   return (hash >>> 0).toString(36);
 }
 
-/** Deterministic serialisation: Reflect.ownKeys (string + symbol), sorted. */
-function stableStringify(val: unknown): string {
+/** Deterministic serialisation: _ownKeys (string + symbol), sorted.
+ *  String and symbol keys are serialized in structurally separate sections
+ *  (separated by '|') so no crafted string key can collide with a symbol key. */
+function stableStringify(val: unknown, seen: WeakSet<object> = new WeakSet()): string {
   if (val === null || typeof val !== 'object') {
-    return JSON.stringify(val) ?? 'undefined';
+    if (typeof val === 'number') {
+      if (Number.isNaN(val)) return '"NaN"';
+      if (!Number.isFinite(val)) return val > 0 ? '"Infinity"' : '"-Infinity"';
+    }
+    if (val === undefined) return 'undefined';
+    return JSON.stringify(val);
   }
+
+  // Circular reference guard
+  if (seen.has(val)) return '"[Circular]"';
+  seen.add(val);
+
   if (Array.isArray(val)) {
-    return '[' + val.map(stableStringify).join(',') + ']';
+    return '[' + val.map(v => stableStringify(v, seen)).join(',') + ']';
   }
+
   const obj = val as Record<string | symbol, unknown>;
-  const allKeys = Reflect.ownKeys(obj);
-  // Prefix symbol keys with \0S: to avoid collision with string keys
-  const entries = allKeys
-    .map(k => typeof k === 'symbol' ? '\0S:' + k.toString() : String(k))
-    .sort((a, b) => a.localeCompare(b));
-  const pairs = entries.map(sk => {
-    const origKey = allKeys.find(k =>
-      (typeof k === 'symbol' ? '\0S:' + k.toString() : String(k)) === sk
-    )!;
-    return JSON.stringify(sk) + ':' + stableStringify(obj[origKey]);
-  });
-  return '{' + pairs.join(',') + '}';
+  // Use cached _ownKeys to resist post-import Reflect.ownKeys tampering
+  const allKeys = _ownKeys(obj);
+
+  // Separate string and symbol keys into structurally distinct sections
+  const strKeys: string[] = [];
+  const symKeys: symbol[] = [];
+  for (const k of allKeys) {
+    if (typeof k === 'symbol') symKeys.push(k);
+    else strKeys.push(String(k));
+  }
+
+  strKeys.sort((a, b) => a.localeCompare(b));
+  symKeys.sort((a, b) => a.toString().localeCompare(b.toString()));
+
+  const strPairs = strKeys.map(k =>
+    JSON.stringify(k) + ':' + stableStringify(obj[k], seen)
+  );
+  const symPairs = symKeys.map(k =>
+    JSON.stringify(k.toString()) + ':' + stableStringify(obj[k], seen)
+  );
+
+  // '|' separates the two sections — structural, not a prefix, so no collision
+  return '{' + strPairs.join(',') + (symPairs.length ? '|' + symPairs.join(',') : '') + '}';
 }
 
 /**
@@ -74,6 +98,8 @@ function stableStringify(val: unknown): string {
  */
 export function tamperEvident<T>(value: T): TamperEvidentVault<T> {
   const stored = deepClone(value);
+  // Fix #8: freeze stored clone for defense-in-depth
+  if (isFreezable(stored)) freezeDeep(stored as object);
   const fingerprint = hashString(stableStringify(stored));
 
   const get = (): DeepReadonly<T> => {

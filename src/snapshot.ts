@@ -12,8 +12,9 @@ import { isFreezable } from './utils';
  * level, but their internal slot methods (.set(), .add()) still work.
  * For full Map/Set immutability, use `immutableMapView()` / `immutableSetView()`.
  *
- * **Clone domain:** Uses structuredClone (Node 17+). JSON fallback on older
- * runtimes loses Date, Map, Set, RegExp, functions, Symbol keys, undefined.
+ * **Clone domain:** Uses structuredClone (Node 18+). Non-cloneable values
+ * (functions, Symbols, DOM nodes) throw TypeError. No fallback — use
+ * immutableView() for objects containing non-cloneable properties.
  *
  * @param value - Value to snapshot. Primitives returned unchanged.
  * @returns A frozen deep clone typed as DeepReadonly<T>

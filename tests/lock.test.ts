@@ -61,3 +61,14 @@ describe('lock - true snapshot immutability', () => {
     expect(() => lock(obj)).not.toThrow();
   });
 });
+
+describe('snapshot error handling', () => {
+  it('should throw TypeError for objects containing functions', () => {
+    expect(() => snapshot({ fn: () => {} })).toThrow(TypeError);
+    expect(() => snapshot({ fn: () => {} })).toThrow(/non-cloneable/);
+  });
+
+  it('should throw TypeError for nested functions', () => {
+    expect(() => snapshot({ nested: { fn: () => {} } })).toThrow(TypeError);
+  });
+});

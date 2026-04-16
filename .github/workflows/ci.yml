@@ -38,6 +38,10 @@ jobs:
         with:
           name: coverage-report
           path: coverage/
+      - uses: codecov/codecov-action@v5
+        if: matrix.os == 'ubuntu-latest' && matrix.node == 22
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   build:
     name: Build & Size Check

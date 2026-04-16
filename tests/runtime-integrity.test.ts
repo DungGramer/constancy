@@ -130,6 +130,18 @@ describe('checkIntegrity extended checks', () => {
     }
   });
 
+  it('should detect tampered structuredClone', () => {
+    const original = globalThis.structuredClone;
+    try {
+      (globalThis as any).structuredClone = (v: any) => v;
+      const result = checkIntegrity();
+      expect(result.intact).toBe(false);
+      expect(result.compromised).toContain('structuredClone');
+    } finally {
+      globalThis.structuredClone = original;
+    }
+  });
+
   it('should detect tampered Array.isArray', () => {
     const original = Array.isArray;
     try {

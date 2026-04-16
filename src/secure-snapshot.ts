@@ -1,5 +1,29 @@
 import { _freeze, _ownKeys, _getOwnPropertyDescriptor, _defineProperty, _create } from './cached-builtins';
 
+/** Returns true for types whose data lives in internal slots, not own properties. */
+function isNonPlainObject(value: object): boolean {
+  return Array.isArray(value) || value instanceof Map || value instanceof Set
+    || value instanceof Date || value instanceof RegExp
+    || value instanceof WeakMap || value instanceof WeakSet
+    || ArrayBuffer.isView(value);
+}
+
+/** Recursively secure a nested value, wrapping TypeError with property context. */
+function secureNestedValue(key: string | symbol, raw: unknown): unknown {
+  if (raw === null || typeof raw !== 'object') return raw;
+  try {
+    return secureSnapshot(raw as Record<string, unknown>);
+  } catch (err) {
+    if (err instanceof TypeError) {
+      throw new TypeError(
+        `secureSnapshot(): property "${String(key)}" contains a ${raw.constructor?.name ?? 'non-plain object'}. ` +
+        `secureSnapshot() only supports plain objects. Nested Date, Map, Set, Array, etc. are not supported.`
+      );
+    }
+    throw err;
+  }
+}
+
 /**
  * Create a maximally-hardened immutable view of `value`.
  *
@@ -32,47 +56,19 @@ import { _freeze, _ownKeys, _getOwnPropertyDescriptor, _defineProperty, _create 
  * Object.defineProperty(cfg, 'db', { value: null }); // TypeError — non-configurable
  */
 export function secureSnapshot<T extends Record<string, unknown>>(value: T): Readonly<T> {
-  // Reject non-plain objects — their data lives in internal slots, not own properties
-  if (Array.isArray(value) || value instanceof Map || value instanceof Set
-    || value instanceof Date || value instanceof RegExp
-    || value instanceof WeakMap || value instanceof WeakSet
-    || ArrayBuffer.isView(value)) {
+  if (isNonPlainObject(value)) {
     throw new TypeError('secureSnapshot() only supports plain objects. Use snapshot() or vault() for other types.');
   }
   // Null-prototype object — immune to Object.prototype pollution
   const target = _create(null) as T;
-
-  // Closure store: key → final (possibly recursively secured) value
   const store = new Map<string | symbol, unknown>();
 
   for (const key of _ownKeys(value)) {
     const desc = _getOwnPropertyDescriptor(value, key);
-    if (!desc) continue;
+    // Skip missing or accessor descriptors (get/set) to avoid side effects
+    if (!desc || !('value' in desc)) continue;
 
-    // Only process data descriptors — skip accessor descriptors (get/set)
-    // to avoid side effects and `this` leaking during construction.
-    if (!('value' in desc)) continue;
-    const raw: unknown = desc.value;
-
-    // Recursively secure nested objects; leave primitives as-is
-    let secured: unknown;
-    if (raw !== null && typeof raw === 'object') {
-      try {
-        secured = secureSnapshot(raw as Record<string, unknown>);
-      } catch (err) {
-        if (err instanceof TypeError) {
-          throw new TypeError(
-            `secureSnapshot(): property "${String(key)}" contains a ${(raw as object).constructor?.name ?? 'non-plain object'}. ` +
-            `secureSnapshot() only supports plain objects. Nested Date, Map, Set, Array, etc. are not supported.`
-          );
-        }
-        throw err;
-      }
-    } else {
-      secured = raw;
-    }
-
-    store.set(key, secured);
+    store.set(key, secureNestedValue(key, desc.value));
 
     _defineProperty(target, key, {
       get: () => store.get(key),

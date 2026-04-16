@@ -27,32 +27,19 @@ function hashString(str: string): string {
   return (hash >>> 0).toString(36);
 }
 
-/** Deterministic serialisation: _ownKeys (string + symbol), sorted.
- *  String and symbol keys are serialized in structurally separate sections
- *  (separated by '|') so no crafted string key can collide with a symbol key. */
-function stableStringify(val: unknown, seen: WeakSet<object> = new WeakSet()): string {
-  if (val === null || typeof val !== 'object') {
-    if (typeof val === 'number') {
-      if (Number.isNaN(val)) return '"NaN"';
-      if (!Number.isFinite(val)) return val > 0 ? '"Infinity"' : '"-Infinity"';
-    }
-    if (val === undefined) return 'undefined';
-    return JSON.stringify(val);
+/** Serialize a non-object primitive to a deterministic string. */
+function stringifyPrimitive(val: unknown): string {
+  if (typeof val === 'number') {
+    if (Number.isNaN(val)) return '"NaN"';
+    if (!Number.isFinite(val)) return val > 0 ? '"Infinity"' : '"-Infinity"';
   }
+  if (val === undefined) return 'undefined';
+  return JSON.stringify(val);
+}
 
-  // Circular reference guard
-  if (seen.has(val)) return '"[Circular]"';
-  seen.add(val);
-
-  if (Array.isArray(val)) {
-    return '[' + val.map(v => stableStringify(v, seen)).join(',') + ']';
-  }
-
-  const obj = val as Record<string | symbol, unknown>;
-  // Use cached _ownKeys to resist post-import Reflect.ownKeys tampering
+/** Serialize an object's own keys into structurally separated string|symbol sections. */
+function stringifyObjectKeys(obj: Record<string | symbol, unknown>, seen: WeakSet<object>): string {
   const allKeys = _ownKeys(obj);
-
-  // Separate string and symbol keys into structurally distinct sections
   const strKeys: string[] = [];
   const symKeys: symbol[] = [];
   for (const k of allKeys) {
@@ -72,6 +59,23 @@ function stableStringify(val: unknown, seen: WeakSet<object> = new WeakSet()): s
 
   // '|' separates the two sections — structural, not a prefix, so no collision
   return '{' + strPairs.join(',') + (symPairs.length ? '|' + symPairs.join(',') : '') + '}';
+}
+
+/** Deterministic serialisation: _ownKeys (string + symbol), sorted.
+ *  String and symbol keys are serialized in structurally separate sections
+ *  (separated by '|') so no crafted string key can collide with a symbol key. */
+function stableStringify(val: unknown, seen: WeakSet<object> = new WeakSet()): string {
+  if (val === null || typeof val !== 'object') return stringifyPrimitive(val);
+
+  // Circular reference guard
+  if (seen.has(val)) return '"[Circular]"';
+  seen.add(val);
+
+  if (Array.isArray(val)) {
+    return '[' + val.map(v => stableStringify(v, seen)).join(',') + ']';
+  }
+
+  return stringifyObjectKeys(val as Record<string | symbol, unknown>, seen);
 }
 
 /**

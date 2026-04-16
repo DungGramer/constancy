@@ -309,6 +309,47 @@ describe('getPrototypeOf bypass protection', () => {
   });
 });
 
+describe('immutable - proxy trap coverage', () => {
+  it('throws on Object.preventExtensions', () => {
+    const view = immutable({ a: 1 });
+    expect(() => Object.preventExtensions(view)).toThrow(TypeError);
+  });
+
+  it('"in" operator works (has trap)', () => {
+    const view = immutable({ a: 1, b: undefined });
+    expect('a' in view).toBe(true);
+    expect('b' in view).toBe(true);
+    expect('c' in view).toBe(false);
+  });
+
+  it('Object.isExtensible works (isExtensible trap)', () => {
+    const view = immutable({ a: 1 });
+    expect(Object.isExtensible(view)).toBe(true);
+  });
+
+  it('Map.has works through proxy (wrapMapMethod returns null)', () => {
+    const m = new Map([['k', 'v']]);
+    const view = immutable(m);
+    expect(view.has('k')).toBe(true);
+    expect(view.has('missing')).toBe(false);
+  });
+
+  it('Map.size works through proxy', () => {
+    const m = new Map([['a', 1], ['b', 2]]);
+    const view = immutable(m);
+    expect(view.size).toBe(2);
+  });
+
+  it('Set.entries() wraps values in proxy', () => {
+    const s = new Set([{ x: 1 }, { x: 2 }]);
+    const view = immutable(s);
+    for (const [v1, v2] of view.entries()) {
+      expect(v1).toBe(v2);
+      expect(() => { (v1 as any).x = 99; }).toThrow(TypeError);
+    }
+  });
+});
+
 describe('assertImmutableView', () => {
   it('should not throw for immutable view proxy', () => {
     const view = immutable({ a: 1 });

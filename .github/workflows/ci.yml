@@ -18,7 +18,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        node: [18, 20, 22]
+        node: [20, 22]
         exclude:
           - os: windows-latest
             node: 20
@@ -87,7 +87,7 @@ jobs:
       security-events: write
     steps:
       - uses: actions/checkout@v6
-      - uses: aquasecurity/trivy-action@0.31.0
+      - uses: aquasecurity/trivy-action@v0.35.0
         with:
           token: ${{ github.token }}
           scan-type: fs

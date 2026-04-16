@@ -1,4 +1,5 @@
 # Constancy
+<!-- CI verified -->
 
 [![npm version](https://img.shields.io/npm/v/constancy.svg)](https://www.npmjs.com/package/constancy)
 [![npm downloads](https://img.shields.io/npm/dm/constancy.svg)](https://www.npmjs.com/package/constancy)

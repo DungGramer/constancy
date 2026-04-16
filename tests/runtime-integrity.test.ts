@@ -105,4 +105,40 @@ describe('checkIntegrity extended checks', () => {
     expect(result.intact).toBe(true);
     expect(result.compromised).toHaveLength(0);
   });
+
+  it('should detect tampered Proxy', () => {
+    const original = globalThis.Proxy;
+    try {
+      (globalThis as any).Proxy = class FakeProxy { constructor(t: any) { return t; } };
+      const result = checkIntegrity();
+      expect(result.intact).toBe(false);
+      expect(result.compromised).toContain('Proxy');
+    } finally {
+      globalThis.Proxy = original;
+    }
+  });
+
+  it('should detect tampered JSON.stringify', () => {
+    const original = JSON.stringify;
+    try {
+      JSON.stringify = (() => '') as any;
+      const result = checkIntegrity();
+      expect(result.intact).toBe(false);
+      expect(result.compromised).toContain('JSON.stringify');
+    } finally {
+      JSON.stringify = original;
+    }
+  });
+
+  it('should detect tampered Array.isArray', () => {
+    const original = Array.isArray;
+    try {
+      Array.isArray = (() => false) as any;
+      const result = checkIntegrity();
+      expect(result.intact).toBe(false);
+      expect(result.compromised).toContain('Array.isArray');
+    } finally {
+      Array.isArray = original;
+    }
+  });
 });

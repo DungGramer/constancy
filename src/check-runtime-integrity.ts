@@ -1,8 +1,11 @@
 import {
   _freeze, _isFrozen,
   _getOwnPropertyDescriptor, _defineProperty,
-  _create, _ownKeys, _isView
+  _create, _ownKeys, _isView, _Proxy,
+  _structuredClone, _jsonStringify, _isArray
 } from './cached-builtins';
+
+declare function structuredClone<T>(value: T): T;
 
 export interface IntegrityResult {
   readonly intact: boolean;
@@ -30,8 +33,12 @@ export function checkRuntimeIntegrity(): IntegrityResult {
   if (Object.create !== _create) compromised.push('Object.create');
   if (Reflect.ownKeys !== _ownKeys) compromised.push('Reflect.ownKeys');
   if (ArrayBuffer.isView !== _isView) compromised.push('ArrayBuffer.isView');
-  if (typeof Proxy !== 'function') compromised.push('Proxy');
+  if (Proxy !== _Proxy) compromised.push('Proxy');
   if (typeof Reflect !== 'object' || Reflect === null) compromised.push('Reflect');
+  if (typeof structuredClone === 'function' && structuredClone !== _structuredClone)
+    compromised.push('structuredClone');
+  if (JSON.stringify !== _jsonStringify) compromised.push('JSON.stringify');
+  if (Array.isArray !== _isArray) compromised.push('Array.isArray');
 
   return _freeze({ intact: compromised.length === 0, compromised: _freeze(compromised) });
 }

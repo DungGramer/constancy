@@ -20,9 +20,41 @@ const DATE_MUTATORS = new Set([
   'setMonth', 'setUTCMonth', 'setFullYear', 'setUTCFullYear',
 ]);
 
+/** Map of constructor → blocked method names */
+const MUTATOR_MAP: [Function, Set<string>][] = [
+  [Map, MAP_MUTATORS],
+  [Set, SET_MUTATORS],
+  [WeakMap, WEAKMAP_MUTATORS],
+  [WeakSet, WEAKSET_MUTATORS],
+  [Date, DATE_MUTATORS],
+];
+
 /** Throw a consistent TypeError for any mutation attempt */
 function rejectMutation(op: string): never {
   throw new TypeError(`Cannot ${op}: object is immutable`);
+}
+
+/** Check if target has internal slots (Map/Set/WeakMap/WeakSet/Date) */
+function hasInternalSlots(target: object): boolean {
+  return target instanceof Map || target instanceof Set
+    || target instanceof WeakMap || target instanceof WeakSet
+    || target instanceof Date;
+}
+
+/** Check if prop is a blocked mutator method on target. Returns method name or null. */
+function getBlockedMutator(target: object, prop: string | symbol): string | null {
+  if (typeof prop !== 'string') return null;
+  for (const [ctor, mutators] of MUTATOR_MAP) {
+    if (target instanceof ctor && mutators.has(prop)) return prop;
+  }
+  if (Array.isArray(target) && ARRAY_MUTATORS.has(prop)) return prop;
+  return null;
+}
+
+/** Check if a property descriptor is non-writable + non-configurable (Proxy invariant) */
+function isFrozenDescriptor(target: object, prop: string | symbol): boolean {
+  const desc = Reflect.getOwnPropertyDescriptor(target, prop);
+  return !!desc && !desc.configurable && 'value' in desc && !desc.writable;
 }
 
 /** Create a Proxy that blocks all mutations on obj */
@@ -31,81 +63,39 @@ function createImmutableProxy<T extends object>(obj: T): T {
 
   const proxy = new Proxy(obj, {
     get(target, prop, receiver) {
-      // Types with internal slots require `this` to be the real instance.
-      // Read value from target directly to avoid "incompatible receiver".
-      const hasInternalSlots = target instanceof Map || target instanceof Set
-        || target instanceof WeakMap || target instanceof WeakSet
-        || target instanceof Date;
-      const value = hasInternalSlots
+      const isSlotted = hasInternalSlots(target);
+      const value = isSlotted
         ? Reflect.get(target, prop)
         : Reflect.get(target, prop, receiver);
 
-      // Block mutation methods on built-in types with internal slots
-      if (typeof prop === 'string') {
-        if (target instanceof Map && MAP_MUTATORS.has(prop)) return () => rejectMutation(prop);
-        if (target instanceof Set && SET_MUTATORS.has(prop)) return () => rejectMutation(prop);
-        if (target instanceof WeakMap && WEAKMAP_MUTATORS.has(prop)) return () => rejectMutation(prop);
-        if (target instanceof WeakSet && WEAKSET_MUTATORS.has(prop)) return () => rejectMutation(prop);
-        if (target instanceof Date && DATE_MUTATORS.has(prop)) return () => rejectMutation(prop);
-        if (Array.isArray(target) && ARRAY_MUTATORS.has(prop)) return () => rejectMutation(prop);
-      }
+      // Block mutation methods on built-in types
+      const blocked = getBlockedMutator(target, prop);
+      if (blocked) return () => rejectMutation(blocked);
 
-      // Bind methods to the real target so they access internal slots correctly
-      if (hasInternalSlots && typeof value === 'function') {
+      // Bind non-mutator methods to real target for internal slot access
+      if (isSlotted && typeof value === 'function') {
         return (value as Function).bind(target);
       }
 
-      // Lazily wrap nested objects in a proxy on access.
-      // BUT: if property is non-writable + non-configurable, Proxy spec §10.5.8
-      // requires returning exact same value. Return unwrapped to avoid TypeError.
+      // Lazily wrap nested objects. Respect Proxy invariant §10.5.8:
+      // non-writable + non-configurable props must return exact value.
       if (isFreezable(value)) {
-        if (typeof prop === 'string' || typeof prop === 'symbol') {
-          const desc = Reflect.getOwnPropertyDescriptor(target, prop);
-          if (desc && !desc.configurable && 'value' in desc && !desc.writable) {
-            return value; // must return exact value per Proxy invariant
-          }
-        }
+        if (isFrozenDescriptor(target, prop)) return value;
         return createImmutableProxy(value as object);
       }
 
       return value;
     },
 
-    set(_t, prop) {
-      return rejectMutation(`set property "${String(prop)}"`);
-    },
-
-    deleteProperty(_t, prop) {
-      return rejectMutation(`delete property "${String(prop)}"`);
-    },
-
-    defineProperty(_t, prop) {
-      return rejectMutation(`define property "${String(prop)}"`);
-    },
-
-    setPrototypeOf() {
-      return rejectMutation('set prototype');
-    },
-
-    has(target, prop) {
-      return Reflect.has(target, prop);
-    },
-
-    ownKeys(target) {
-      return Reflect.ownKeys(target);
-    },
-
-    getOwnPropertyDescriptor(target, prop) {
-      return Reflect.getOwnPropertyDescriptor(target, prop);
-    },
-
-    preventExtensions() {
-      return rejectMutation('prevent extensions');
-    },
-
-    isExtensible(target) {
-      return Reflect.isExtensible(target);
-    },
+    set(_t, prop) { return rejectMutation(`set property "${String(prop)}"`); },
+    deleteProperty(_t, prop) { return rejectMutation(`delete property "${String(prop)}"`); },
+    defineProperty(_t, prop) { return rejectMutation(`define property "${String(prop)}"`); },
+    setPrototypeOf() { return rejectMutation('set prototype'); },
+    preventExtensions() { return rejectMutation('prevent extensions'); },
+    has(target, prop) { return Reflect.has(target, prop); },
+    ownKeys(target) { return Reflect.ownKeys(target); },
+    getOwnPropertyDescriptor(target, prop) { return Reflect.getOwnPropertyDescriptor(target, prop); },
+    isExtensible(target) { return Reflect.isExtensible(target); },
   });
 
   proxyCache.set(obj, proxy);
@@ -128,28 +118,17 @@ function createImmutableProxy<T extends object>(obj: T): T {
  * @returns A Proxy-based immutable view, typed as DeepReadonly<T>
  *
  * @example
- * const obj = immutable({ nested: { count: 0 } });
+ * const obj = immutableView({ nested: { count: 0 } });
  * obj.nested.count = 1; // throws TypeError
  */
 export function immutableView<T>(val: T): T extends object ? DeepReadonly<T> : T {
   if (!isFreezable(val)) return val as T extends object ? DeepReadonly<T> : T;
-  // NOTE: We intentionally do NOT freeze the target. Proxy invariants require
-  // that get traps on non-writable/non-configurable properties return the exact
-  // target value — but we return proxy-wrapped nested objects for deep immutability.
-  // Freezing + Proxy get trap are fundamentally incompatible in the JS spec.
-  // If callers retain the original reference, they can mutate the underlying data.
-  // Use vault() for reference isolation, or don't retain the original reference.
   return createImmutableProxy(val as object) as T extends object ? DeepReadonly<T> : T;
 }
 
 /**
  * Check whether a value is a Proxy created by `immutableView()`.
- *
  * Uses a private WeakSet registry — unforgeable from outside the module.
- * Returns false for any other value, including plain frozen objects.
- *
- * @param val - Value to test
- * @returns true if val was produced by immutableView()
  */
 export function isImmutableView(val: unknown): boolean {
   if (!isFreezable(val)) return false;

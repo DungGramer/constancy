@@ -2,9 +2,13 @@
 
 [![npm version](https://img.shields.io/npm/v/constancy.svg)](https://www.npmjs.com/package/constancy)
 [![npm downloads](https://img.shields.io/npm/dm/constancy.svg)](https://www.npmjs.com/package/constancy)
-[![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue.svg)](https://www.typescriptlang.org/)
+[![CI](https://img.shields.io/github/actions/workflow/status/DungGramer/constancy/ci.yml?label=CI)](https://github.com/DungGramer/constancy/actions/workflows/ci.yml)
+[![CodeQL](https://img.shields.io/github/actions/workflow/status/DungGramer/constancy/codeql.yml?label=CodeQL)](https://github.com/DungGramer/constancy/actions/workflows/codeql.yml)
+[![OSV Scanner](https://img.shields.io/github/actions/workflow/status/DungGramer/constancy/osv-scanner.yml?label=OSV)](https://github.com/DungGramer/constancy/actions/workflows/osv-scanner.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/DungGramer/constancy/badge)](https://scorecard.dev/viewer/?uri=github.com/DungGramer/constancy)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=DungGramer_constancy&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=DungGramer_constancy)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=DungGramer_constancy&metric=coverage)](https://sonarcloud.io/summary/new_code?id=DungGramer_constancy)
 [![license](https://img.shields.io/npm/l/constancy.svg)](https://github.com/DungGramer/constancy/blob/master/LICENSE)
-[![test](https://img.shields.io/github/actions/workflow/status/DungGramer/constancy/ci.yml?label=tests)](https://github.com/DungGramer/constancy/actions)
 
 > Lightweight, zero-dependency TypeScript library for deep immutability with multi-level defense against tampering. Freeze, immutable views, snapshots, vaults, and structural hashing.
 

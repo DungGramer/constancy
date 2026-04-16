@@ -41,7 +41,7 @@ describe('secure - getter-only + non-configurable', () => {
 
   it('Object.keys works', () => {
     const obj = secure({ a: 1, b: 2 });
-    expect(Object.keys(obj).sort()).toEqual(['a', 'b']);
+    expect(Object.keys(obj).sort((a, b) => a.localeCompare(b))).toEqual(['a', 'b']);
   });
 
   it('JSON.stringify works', () => {

@@ -2,7 +2,7 @@
 
 ## Architecture Overview
 
-Constancy is a multi-level immutability library with 4 defense levels: freeze (L0), proxy views (L1), snapshots (L1.5), vault isolation (L2), hardened views (L3), and tamper-proof vaults (L4). The architecture follows strict minimal principles: pure functions, no runtime dependencies, dual ESM+CJS output via conditional package exports.
+Constancy is a multi-level immutability library with 5 defense levels: freeze (L0), proxy views (L1), snapshots (L1.5), vault isolation (L2), and hardened snapshots (L3). The architecture follows strict minimal principles: pure functions, no runtime dependencies, dual ESM+CJS output via conditional package exports. Enhanced with SLSA Level 3 provenance, fuzz testing (Jazzer.js), Codecov coverage tracking, and post-import tamper resistance (12 builtin checks).
 
 **Core Principle:** Provide flexible immutability primitives from lightweight freezing to deep isolation, with full TypeScript type safety and zero external dependencies.
 
@@ -146,6 +146,7 @@ KEY: All Object/Reflect calls use cached references from cached-builtins.ts
 // cached-builtins.ts — captured at module load
 export const _freeze = Object.freeze;
 export const _ownKeys = Reflect.ownKeys;
+// + 10 more builtins
 
 // Usage in deep-freeze.ts
 _freeze(obj);  // Original, even if attacker overrides Object.freeze later
@@ -158,7 +159,10 @@ Object.freeze = () => { /* noop */ };   // Attacker override
 const obj = deepFreeze({ a: 1 });       // Still uses original _freeze!
 ```
 
-Captures `Object.freeze`, `Object.isFrozen`, `Object.getOwnPropertyDescriptor`, `Reflect.ownKeys`, `ArrayBuffer.isView` at module load time.
+Captures 12 builtins at module load time:
+- Object.freeze, Object.isFrozen, Object.getOwnPropertyDescriptor, Object.create, Object.defineProperty
+- Reflect.ownKeys, Reflect.get, Reflect.defineProperty
+- ArrayBuffer.isView, JSON.stringify, structuredClone, Array.isArray
 
 #### Circular Reference Safety (WeakSet)
 ```typescript
@@ -275,17 +279,17 @@ src/index.ts (barrel — 5 categories)
     │  ├─ src/freeze-shallow.ts
     │  │  └─→ src/cached-builtins.ts, src/utils.ts
     │  └─ src/deep-freeze.ts
-    │     └─→ src/cached-builtins.ts, src/utils.ts, src/types.ts
+    │     └─→ src/freeze-deep-internal.ts, src/cached-builtins.ts, src/utils.ts, src/types.ts
     │
     ├─ VIEW CATEGORY
     │  ├─ src/immutable-view.ts
-    │  │  └─→ src/utils.ts, src/types.ts
+    │  │  └─→ src/immutable-view-collection-wraps.ts, src/utils.ts, src/types.ts
     │  └─ src/immutable-collection-views.ts
-    │     └─→ src/immutable-view.ts
+    │     └─→ src/immutable-view.ts, src/types.ts
     │
     ├─ SNAPSHOT CATEGORY
     │  ├─ src/snapshot.ts
-    │  │  └─→ src/deep-freeze.ts, src/types.ts
+    │  │  └─→ src/freeze-deep-internal.ts, src/deep-freeze.ts, src/types.ts
     │  ├─ src/secure-snapshot.ts
     │  │  └─→ src/snapshot.ts, src/types.ts
     │  └─ src/tamper-evident.ts
@@ -301,6 +305,8 @@ src/index.ts (barrel — 5 categories)
     │  └─ src/check-runtime-integrity.ts
     │     └─→ src/cached-builtins.ts
     │
+    ├─ src/freeze-deep-internal.ts (no deps)
+    ├─ src/immutable-view-collection-wraps.ts (no deps)
     ├─ src/cached-builtins.ts (no deps)
     ├─ src/types.ts (no deps)
     └─ src/utils.ts (no deps)
@@ -315,15 +321,17 @@ No circular dependencies.
 | `index.ts` | Public barrel — re-exports by category (5 groups) |
 | `freeze-shallow.ts` | Shallow freeze via `Object.freeze()` |
 | `deep-freeze.ts` | Recursive freeze with WeakSet + cached builtins |
-| `cached-builtins.ts` | Captured references (post-import tamper resistance) |
-| `immutable-view.ts` | Proxy-based immutability + detection + assertion |
-| `immutable-collection-views.ts` | immutableMapView/SetView wrappers |
+| `freeze-deep-internal.ts` | deepClone() + freezeDeep() helpers (CC optimization) |
+| `cached-builtins.ts` | Captured references (12 builtins, post-import tamper resistance) |
+| `immutable-view.ts` | Proxy-based immutability + detection + assertion + all traps |
+| `immutable-view-collection-wraps.ts` | wrapMapMethod/wrapSetMethod helpers (CC optimization) |
+| `immutable-collection-views.ts` | ImmutableMap/Set classes with readonly semantics |
 | `snapshot.ts` | Clone + deep freeze for true immutability |
-| `secure-snapshot.ts` | Snapshot with null proto + getter-only |
-| `tamper-evident.ts` | Vault + djb2 hash verification |
+| `secure-snapshot.ts` | Snapshot with null proto + getter-only (CC 17→10) |
+| `tamper-evident.ts` | Vault + djb2 hash verification (CC 22→6) |
 | `vault.ts` | Closure isolation + copy-on-read |
 | `verification.ts` | isDeepFrozen() + assertDeepFrozen() |
-| `check-runtime-integrity.ts` | Detect post-import builtin tampering |
+| `check-runtime-integrity.ts` | Detect post-import tampering (12 builtins) |
 | `types.ts` | DeepReadonly<T>, Vault<T>, TamperProofVault<T>, etc. |
 | `utils.ts` | isFreezable() |
 
@@ -446,78 +454,106 @@ Conditional return types preserve the caller's type information.
 
 ## CI/CD Pipeline Architecture
 
-### GitHub Actions Workflow
+### GitHub Actions Workflows (7 workflows)
 
 ```
 Code Push (master branch)
     │
-    ├─→ [CI Job: Test]
-    │       • Runs on Node 18, 20, 22
+    ├─→ [ci.yml — Test Job]
+    │       • Runs on Node 20, 22 (macOS, Ubuntu, Windows)
     │       • Steps:
     │         └─ npm ci
     │         └─ npm run typecheck
     │         └─ npm run build
-    │         └─ npm test (30 tests)
+    │         └─ npm test (228+ tests)
+    │         └─ npm run test:coverage
+    │         └─ Integration with Codecov
     │
-    ├─→ [CI Job: Compat]
-    │       • Smoke test on Node 14, 16 (compat validation)
-    │       • Build on Node 20 (tsup requires >=18)
-    │       • Verify CJS output loads and works on older Node
+    ├─→ [codeql.yml — SAST]
+    │       • CodeQL analysis for security vulnerabilities
     │
-    ├─→ [CI Job: Coverage]
-    │       • Runs after test job passes
-    │       • Node 22
-    │       • Generates coverage report (v8 provider)
+    ├─→ [dependency-review.yml]
+    │       • PR dependency review gating
     │
-    └─→ (tests must pass before coverage runs)
+    ├─→ [osv-scanner.yml]
+    │       • OSV vulnerability scanning
+    │
+    ├─→ [scorecard.yml]
+    │       • OpenSSF Best Practices Scorecard
+    │
+    ├─→ [fuzz.yml — Fuzz Testing]
+    │       • Runs on push and PR
+    │       • Jazzer.js: 4 fuzz targets
+    │       • Deep-freeze, immutable-view, snapshot, tamper-evident
+    │
+    └─→ (tests + coverage must pass before publish)
 
 Git Tag Push (tag: v*)
     │
-    └─→ [Publish Job]
+    └─→ [publish.yml — SLSA 3 Provenance]
             • Triggered on tags matching v* pattern
-            • Node 20
-            • Steps:
-              └─ npm ci
-              └─ npm publish --access public
-              └─ Uses npm provenance (id-token: write)
+            • Uses slsa-framework/slsa-github-generator
+            • Isolated build container (SLSA Level 3)
+            • Auto-generates provenance attestation
+            • npm publish with provenance signature
+            • id-token: write permission
 
 ```
 
 ### Key Policies
 
-- **Minimum Production Node:** 14 (ES2015 target via esbuild)
-- **Dev Tools Minimum:** 18 (tsup, vitest require >=18)
-- **Prod Test Matrix:** 18, 20, 22 (LTS + latest)
-- **Compat Validation:** Smoke tests on Node 14, 16 to ensure ES2015 target works
-- **Coverage Provider:** v8 (built into Vitest)
-- **Publish Gating:** All tests must pass before coverage; all CI must pass before publish
-- **Provenance:** Enabled (`publishConfig.provenance: true` in package.json)
+- **Minimum Production Node:** 20 (requires node:util.styleText for vitest)
+- **Dev Tools Minimum:** 20 (tsup 8.x, vitest 4.x require >=20)
+- **Prod Test Matrix:** 20, 22 (LTS + latest stable)
+- **OS Coverage:** macOS, Ubuntu, Windows
+- **Coverage Provider:** @vitest/coverage-v8
+- **Coverage Tracking:** Codecov integration (codecov/codecov-action@v5)
+- **Fuzz Testing:** Jazzer.js on every push/PR
+- **SAST:** CodeQL for code security analysis
+- **Publish Gating:** SLSA 3 provenance, all CI must pass
+- **Provenance:** SLSA Level 3 via slsa-framework/slsa-github-generator
+- **Supply Chain Security:** OpenSSF Best Practices badge, Fuzz Testing badge
 
 ---
 
-## Publishing Flow
+## Publishing Flow (SLSA 3)
 
 ```
+src/*.ts
+    ↓ [Isolated build container — slsa-framework]
+    ↓ [tsc type-check + tsup build]
+    ↓
 dist/index.js
 dist/index.cjs
 dist/index.d.ts
+    ↓
 package.json
 README.md
 CHANGELOG.md
 LICENSE
-    │
+    ↓
     ├─→ npm Registry (npmjs.com/package/constancy)
-    └─→ GitHub Package Registry (@dunggramer)
+    │       └─ with SLSA 3 provenance attestation
+    │
+    └─→ GitHub Artifacts
+            └─ provenance.json (cryptographically signed)
 ```
 
-Files included in npm package are specified by `"files": ["dist"]` plus package.json defaults (README, LICENSE, CHANGELOG).
+Files included in npm package: `"files": ["dist"]` + package.json defaults (README, LICENSE, CHANGELOG).
 
 ### Publish Command
 ```bash
 npm publish --access public
 ```
 
-Automatic via GitHub Actions on version tag push (v*). Provenance signature is generated automatically by npm when `id-token: write` permission is set.
+Automatic via GitHub Actions on version tag push (v*).
+
+### Provenance Details
+- **Framework:** slsa-framework/slsa-github-generator (reusable workflow)
+- **Level:** SLSA Level 3 (isolated build, full traceability)
+- **Attestation:** Cryptographically signed provenance.json
+- **Verification:** Can be verified via SLSA tooling
+- **Supply Chain Security:** Defends against package tampering, build environment compromise
 
 ---
 

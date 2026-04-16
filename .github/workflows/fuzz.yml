@@ -1,0 +1,40 @@
+name: Fuzz
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    name: Fuzz (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - fuzz-deep-freeze
+          - fuzz-immutable-view
+          - fuzz-tamper-evident
+          - fuzz-snapshot
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Run fuzzer (${{ matrix.target }})
+        run: npx jazzer fuzz/${{ matrix.target }}.js --timeout=60
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: crash-${{ matrix.target }}
+          path: |
+            crash-*
+            .cifuzz-corpus/

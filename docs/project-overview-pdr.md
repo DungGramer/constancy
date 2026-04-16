@@ -9,6 +9,8 @@
 **Repository:** https://github.com/DungGramer/constancy
 **npm:** https://www.npmjs.com/package/constancy
 **Author:** DungGramer
+**Node.js:** >= 20 (dropped Node 18; requires Node 20+ for node:util.styleText)
+**Build Output:** ESM 5.3KB + CJS 5.9KB, zero runtime dependencies
 
 ---
 
@@ -205,9 +207,9 @@ In JavaScript, objects and arrays are mutable by default. Developers need immuta
 - Zero runtime dependencies
 
 ### NFR-3: Compatibility
-- Node.js: >= 14
+- Node.js: >= 20
 - Works in Node.js, modern browsers (via bundler), and server environments
-- `structuredClone` available in Node >= 17, browsers; JSON fallback for older
+- `structuredClone` available in Node >= 17, browsers; JSON fallback for compatibility
 
 ### NFR-4: Code Quality
 - TypeScript strict mode
@@ -219,11 +221,11 @@ In JavaScript, objects and arrays are mutable by default. Developers need immuta
 
 ## Success Metrics
 
-| Metric | Target | v2.0.0 Status |
+| Metric | Target | v3.0.0 Status |
 |--------|--------|-------------|
-| Test Coverage | >= 95% | 96.85% (169 tests) |
-| Bundle Size ESM | < 6KB | 5.13 KB |
-| Bundle Size CJS | < 6KB | 5.74 KB |
+| Test Coverage | >= 95% | 98%+ (228 tests) |
+| Bundle Size ESM | < 6KB | 5.3 KB |
+| Bundle Size CJS | < 6KB | 5.9 KB |
 | Zero Runtime Dependencies | Yes | Confirmed |
 | TypeScript Source | Yes | Strict mode |
 | Dual ESM+CJS | Yes | Conditional exports |
@@ -249,10 +251,12 @@ In JavaScript, objects and arrays are mutable by default. Developers need immuta
 | Type Definitions | TypeScript declarations | dist/index.d.ts |
 
 ### Dev Dependencies
-- `typescript` — TypeScript compiler
-- `tsup` — Bundler (ESM + CJS output)
-- `vitest` — Test framework
-- `@vitest/coverage-v8` — V8-based coverage
+- `typescript` ^6.0.2 — TypeScript compiler
+- `tsup` ^8.5.1 — Bundler (ESM + CJS output)
+- `vitest` ^4.1.4 — Test framework
+- `@vitest/coverage-v8` ^4.1.4 — V8-based coverage
+- `@jazzer.js/core` ^4.0.0 — Fuzz testing
+- `@types/node` ^25.6.0 — Node.js type definitions
 
 ---
 
@@ -268,7 +272,19 @@ In JavaScript, objects and arrays are mutable by default. Developers need immuta
 
 ## Version History
 
-### 2.0.0 (Current — 2026-04-16)
+### 3.0.0 (Current — 2026-04-17)
+- Security hardening: 15 vulnerabilities fixed, cognitive complexity refactored
+- SLSA 3 provenance: CI upgraded to use slsa-framework/slsa-github-generator for isolated builds
+- Fuzz testing: 4 Jazzer.js fuzz targets (deep-freeze, immutable-view, tamper-evident, snapshot)
+- Codecov integration: coverage reports now tracked via codecov/codecov-action@v5
+- Cognitive complexity reduction: secureSnapshot (CC 17→10), stableStringify (CC 22→6) via extracted helpers
+- Test expansion: 228 tests (12 test files, 2,270+ lines), 98%+ coverage
+- Node.js >= 20: dropped Node 18; requires node:util.styleText for vitest 4.x
+- Extracted helpers: isNonPlainObject(), secureNestedValue(), stringifyPrimitive(), stringifyObjectKeys()
+- Build: tsup (ESM 5.3KB + CJS 5.9KB), zero runtime dependencies
+- Immutable-view-collection-wraps: new helper module for Map/Set collection wrapping
+
+### 2.0.0 (Previous — 2026-04-16)
 - Full TypeScript rewrite with 5 API categories
 - Freeze layer: `freezeShallow()`, `deepFreeze()` with cached builtins for tamper resistance
 - View layer: `immutableView()`, `isImmutableView()`, `assertImmutableView()`, `immutableMapView()`, `immutableSetView()`

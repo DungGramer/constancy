@@ -2,16 +2,17 @@
 
 ## Project Overview
 
-**Constancy** is a lightweight TypeScript utility library for deep immutability with multi-level security defenses. Zero dependencies, dual ESM/CJS export, 169 tests, 96.46% coverage.
+**Constancy** is a lightweight TypeScript utility library for deep immutability with multi-level security defenses. Zero dependencies, dual ESM/CJS export, 228 tests, 98%+ coverage, SLSA 3 provenance, fuzz testing.
 
 **Repository:** https://github.com/DungGramer/constancy
 **Version:** 3.0.0
 **License:** MIT
 **Author:** DungGramer
 **Size:** ESM 5.3KB, CJS 5.9KB
-**Tests:** 169 (12 test files, 1771 lines)
-**Coverage:** 96.46% stmts, 92.59% branch, 94.33% funcs
-**Node.js:** >= 18
+**Tests:** 228 (12 test files, 2,270+ lines)
+**Coverage:** 98%+ line coverage
+**Node.js:** >= 20
+**Security:** SLSA Level 3 provenance, fuzz testing (Jazzer.js), post-import tamper resistance, cognitive complexity refactoring
 
 ---
 
@@ -20,33 +21,40 @@
 ```
 constancy/
 ├── src/
-│   ├── index.ts                      # Barrel exports (12 lines)
-│   ├── freeze-shallow.ts             # Shallow freeze (20 lines)
-│   ├── deep-freeze.ts                # Recursive deep freeze (74 lines)
-│   ├── cached-builtins.ts            # Cached references (14 lines)
-│   ├── immutable-view.ts             # Proxy-based immutability (121 lines)
-│   ├── immutable-collection-views.ts # Map/Set wrappers (113 lines)
-│   ├── vault.ts                      # Closure isolation vault (80 lines)
-│   ├── secure-snapshot.ts            # Null proto + getters (62 lines)
-│   ├── tamper-evident.ts             # Hash-verified vault (85 lines)
-│   ├── snapshot.ts                   # Clone + deep freeze (40 lines)
-│   ├── verification.ts               # Verification utilities (40 lines)
-│   ├── check-runtime-integrity.ts    # Runtime integrity checks (18 lines)
-│   ├── types.ts                      # DeepReadonly<T>, Vault, TamperProofVault (17 lines)
-│   └── utils.ts                      # isFreezable() (18 lines)
+│   ├── index.ts                          # Barrel exports (26 lines)
+│   ├── freeze-shallow.ts                 # Shallow freeze (20 lines)
+│   ├── deep-freeze.ts                    # Recursive deep freeze (39 lines)
+│   ├── freeze-deep-internal.ts           # deepClone() helper (50 lines)
+│   ├── cached-builtins.ts                # Cached references (28 lines)
+│   ├── immutable-view.ts                 # Proxy-based immutability (171 lines)
+│   ├── immutable-view-collection-wraps.ts # Map/Set collection wrappers (123 lines)
+│   ├── immutable-collection-views.ts     # ImmutableMap/Set classes (176 lines)
+│   ├── vault.ts                          # Closure isolation vault (44 lines)
+│   ├── secure-snapshot.ts                # Null proto + getters (81 lines) [CC 17→10 refactored]
+│   ├── tamper-evident.ts                 # Hash-verified vault (125 lines)
+│   ├── snapshot.ts                       # Clone + deep freeze (37 lines)
+│   ├── verification.ts                   # Verification utilities (38 lines)
+│   ├── check-runtime-integrity.ts        # Runtime integrity checks (44 lines) [12 builtins]
+│   ├── types.ts                          # DeepReadonly<T>, Vault, TamperProofVault (18 lines)
+│   └── utils.ts                          # isFreezable() (8 lines)
 ├── tests/
-│   ├── freeze-shallow.test.ts        # 19 tests (shallow freeze)
+│   ├── constancy.test.ts             # 19 tests (shallow freeze)
 │   ├── deep-freeze.test.ts           # 11 tests (recursive freeze)
 │   ├── cached-builtins.test.ts       # 3 tests (tamper resistance)
-│   ├── immutable-proxy.test.ts       # 34 tests (proxy immutability)
-│   ├── immutable-collection-views.test.ts # 14 tests (Map/Set)
+│   ├── immutable-proxy.test.ts       # 34 tests (proxy immutability, proxy traps)
+│   ├── immutable-collections.test.ts # 14+ tests (Map/Set, Set.entries)
 │   ├── lock.test.ts                  # 9 tests (snapshot freeze)
 │   ├── vault.test.ts                 # 9 tests (copy-on-read)
 │   ├── secure.test.ts                # 9 tests (null proto + getters)
 │   ├── tamper-proof.test.ts          # 11 tests (hash verification)
 │   ├── verify.test.ts                # 12 tests (verification utils)
 │   ├── runtime-integrity.test.ts     # 4 tests (builtin integrity)
-│   └── api-protection.test.ts        # 34 tests (mutation defense)
+│   └── api-protection.test.ts        # 34+ tests (mutation defense, structuredClone tampering)
+├── fuzz/                              # Fuzz testing targets (Jazzer.js)
+│   ├── fuzz-deep-freeze.js           # deepFreeze() fuzzer
+│   ├── fuzz-immutable-view.js        # immutableView() fuzzer
+│   ├── fuzz-snapshot.js              # snapshot() fuzzer
+│   └── fuzz-tamper-evident.js        # tamperEvident() fuzzer
 ├── dist/                              # Build output (generated)
 │   ├── index.js                       # ESM bundle
 │   ├── index.cjs                      # CJS bundle
@@ -55,7 +63,18 @@ constancy/
 │   ├── project-overview-pdr.md
 │   ├── codebase-summary.md            # This file
 │   ├── code-standards.md
-│   └── system-architecture.md
+│   ├── system-architecture.md
+│   ├── development-roadmap.md
+│   ├── project-changelog.md
+│   └── security-guide.md
+├── .github/workflows/                 # GitHub Actions CI/CD
+│   ├── ci.yml                         # Test matrix (Node 20/22, 3 OS), build, security checks
+│   ├── codeql.yml                     # CodeQL SAST analysis
+│   ├── dependency-review.yml          # Dependency review on PRs
+│   ├── osv-scanner.yml                # OSV vulnerability scanning
+│   ├── scorecard.yml                  # OpenSSF Scorecard
+│   ├── publish.yml                    # SLSA 3 provenance + npm publish
+│   └── fuzz.yml                       # Jazzer.js fuzz testing on push/PR
 ├── package.json
 ├── tsconfig.json
 ├── tsup.config.ts
@@ -87,10 +106,17 @@ Implements `freezeShallow<T>(val: T)` — shallow freeze.
 #### `src/deep-freeze.ts`
 Implements `deepFreeze<T>(val: T)` — recursive freeze with circular ref safety.
 - Uses cached builtins: `_freeze`, `_ownKeys`, `_getOwnPropertyDescriptor`, `_isView`
+- Delegates deep cloning to `freeze-deep-internal.ts` via `deepClone()`
 - WeakSet guards circular references
 - Skips TypedArrays (would throw natively on non-empty)
 - Skips accessor descriptors (avoid unintended side effects)
 - Bottom-up freeze order (children before parent)
+
+#### `src/freeze-deep-internal.ts`
+Internal helper for deep cloning and recursive freezing.
+- `deepClone()` — clones using structuredClone (Node >= 17) or JSON fallback
+- `freezeDeep()` — recursive freeze with circular ref safety
+- Extracted helpers reduce cognitive complexity of main freeze logic
 
 #### `src/cached-builtins.ts`
 Captures references at module load time:
@@ -111,35 +137,46 @@ Implements `snapshot<T>(value: T)` — Deep clone + deep freeze.
 - True data immutability (not a view)
 - Returns `DeepReadonly<T>`
 
-#### `src/immutable-view.ts` (formerly immutable-proxy.ts)
+#### `src/immutable-view.ts`
 Implements `immutableView<T>(obj: T)`, `isImmutableView(val)`, `assertImmutableView(val)`.
 - Proxy-based approach: wraps target in Proxy with universal `get`, `set`, `deleteProperty` traps
 - All mutation attempts throw `TypeError`
 - Special handling for types with internal slots (Map, Set, Date, WeakMap, WeakSet)
 - Blocks all mutator method calls (e.g., `map.set()`, `array.push()`)
+- Implements all proxy traps: preventExtensions, has, isExtensible, defineProperty
 - ProxyCache (WeakMap) ensures same proxy per target
 - WeakSet registry for unforgeable detection
 
-#### `src/immutable-collection-views.ts` (formerly immutable-collections.ts)
-Implements `immutableMapView<K, V>()` and `immutableSetView<T>()`.
+#### `src/immutable-view-collection-wraps.ts`
+Helper functions for Map/Set collection wrapping.
+- `wrapMapMethod()` — intercepts Map mutators (set, delete, clear)
+- `wrapSetMethod()` — intercepts Set mutators (add, delete, clear)
+- Reduces cognitive complexity of main immutableView logic
+
+#### `src/immutable-collection-views.ts`
+Implements `ImmutableMap<K, V>` and `ImmutableSet<T>` classes.
 - Thin wrappers around `immutableView()` for convenience
 - Type-safe readonly aliases for Map and Set
+- Full class-based implementations with readonly semantics
 
-#### `src/secure-snapshot.ts` (formerly secure.ts)
+#### `src/secure-snapshot.ts`
 Implements `secureSnapshot<T>(obj: T)` — hardened snapshot.
 - Creates snapshot with `Object.create(null)` (immune to prototype pollution)
 - All properties are non-configurable getters backed by closure Map
 - Nested objects recursively secured
 - Accessor descriptors resolved once; result secured
+- Extracted helpers: `isNonPlainObject()`, `secureNestedValue()` (CC 17→10 refactored)
 - Returns snapshot with maximum hardening
 
-#### `src/tamper-evident.ts` (formerly tamper-proof.ts)
+#### `src/tamper-evident.ts`
 Implements `tamperEvident<T>(val: T)` returning `TamperProofVault<T>` interface.
 - Combines vault isolation with djb2 hash verification
 - `fingerprint`: original hash (base-36 encoded) at creation time
 - `verify()`: returns boolean; recomputes hash and compares
 - `assertIntact()`: throws `TypeError` if hash mismatch
-- Stable serialization: keys sorted alphabetically for determinism
+- Stable serialization: extracted helpers `stringifyPrimitive()` and `stringifyObjectKeys()` (CC 22→6 refactored)
+- Handles NaN/Infinity/null collision prevention
+- Keys sorted alphabetically for determinism
 
 ### Isolation Layer
 
@@ -158,10 +195,11 @@ Implements `isDeepFrozen<T>(val: T)` and `assertDeepFrozen<T>(val: T)`.
 - `isDeepFrozen()`: recursive traversal with visited set; checks `Object.isFrozen()` on all objects
 - `assertDeepFrozen()`: throws if not deeply frozen
 
-#### `src/check-runtime-integrity.ts` (formerly runtime-integrity.ts)
+#### `src/check-runtime-integrity.ts`
 Implements `checkRuntimeIntegrity()` for post-import tampering detection.
-- Verifies that Object.freeze and other builtins haven't been overridden
+- Verifies that 12 builtins haven't been overridden: Object.freeze, Object.isFrozen, Object.getOwnPropertyDescriptor, Object.create, Object.defineProperty, Reflect.ownKeys, Reflect.get, Reflect.defineProperty, ArrayBuffer.isView, JSON.stringify, structuredClone, Array.isArray
 - Returns integrity status with detailed issues list
+- Comprehensive coverage for advanced threat models
 
 #### `src/types.ts`
 Type definitions:
@@ -282,14 +320,15 @@ Utility functions:
 
 #### `package.json`
 Key fields:
-- `version`: 2.0.0
+- `version`: 3.0.0
 - `type`: module (ESM-first)
 - `main`: `./dist/index.cjs` (CJS fallback)
 - `module`: `./dist/index.js` (ESM)
 - `types`: `./dist/index.d.ts`
 - `exports`: conditional `import`/`require`/`types`
-- `engines.node`: `>=14`
+- `engines.node`: `>=20`
 - `sideEffects`: false
+- `publishConfig.provenance`: true (SLSA 3)
 
 #### `tsconfig.json`
 TypeScript configuration targeting ES2015 with strict mode.
@@ -370,26 +409,33 @@ Typecheck command: `npm run typecheck`
 npm test              # single run
 npm run test:watch    # watch mode
 npm run test:coverage # with coverage report
+npm run fuzz          # Jazzer.js fuzz testing
 ```
 
-### Coverage (v2.0.0 — 2026-04-16)
-- **Statements:** 96.46%
-- **Branches:** 92.59%
-- **Functions:** 94.33%
-- **Lines:** 96.46%
-- **Total tests:** 169 across 12 test files
-  - constancy.test.ts: 19
-  - deep-freeze.test.ts: 11
-  - cached-builtins.test.ts: 3
-  - immutable-proxy.test.ts: 34
-  - immutable-collections.test.ts: 14
-  - lock.test.ts: 9
-  - vault.test.ts: 9
-  - secure.test.ts: 9
-  - tamper-proof.test.ts: 11
-  - verify.test.ts: 12
-  - runtime-integrity.test.ts: 4
-  - api-protection.test.ts: 34
+### Coverage (v3.0.0 — 2026-04-17)
+- **Line Coverage:** 98%+
+- **Total tests:** 228+ across 12 test files (~2,270 lines)
+  - constancy.test.ts: 19 (shallow freeze)
+  - deep-freeze.test.ts: 11 (recursive freeze)
+  - cached-builtins.test.ts: 3 (post-import tamper resistance)
+  - immutable-proxy.test.ts: 34+ (proxy traps, preventExtensions, has, isExtensible)
+  - immutable-collections.test.ts: 14+ (Map/Set, Set.entries)
+  - lock.test.ts: 9 (snapshot freeze)
+  - vault.test.ts: 9 (copy-on-read)
+  - secure.test.ts: 9 (null proto + getters)
+  - tamper-proof.test.ts: 11 (hash verification)
+  - verify.test.ts: 12 (verification utils)
+  - runtime-integrity.test.ts: 4 (builtin integrity)
+  - api-protection.test.ts: 34+ (mutation defense, structuredClone tampering)
+
+### Fuzz Testing
+- **Framework:** Jazzer.js (@jazzer.js/core ^4.0.0)
+- **Targets:** 4 fuzz targets
+  - `fuzz-deep-freeze.js` — deepFreeze() fuzz tests
+  - `fuzz-immutable-view.js` — immutableView() fuzz tests
+  - `fuzz-snapshot.js` — snapshot() fuzz tests
+  - `fuzz-tamper-evident.js` — tamperEvident() fuzz tests
+- **CI Integration:** fuzz.yml workflow on push and PR
 
 ---
 

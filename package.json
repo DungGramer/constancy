@@ -11,7 +11,8 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "sideEffects": false,
   "files": [
@@ -22,14 +23,14 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "fuzz": "npx jazzer"
   },
   "engines": {
     "node": ">=20"
   },
   "keywords": [
     "constancy",
-    "constant",
     "freeze",
     "deep-freeze",
     "deepfreeze",
@@ -40,7 +41,14 @@
     "frozen",
     "typescript",
     "zero-dependency",
-    "state-management"
+    "state-management",
+    "proxy",
+    "tamper-proof",
+    "vault",
+    "snapshot",
+    "security",
+    "deep-clone",
+    "runtime-integrity"
   ],
   "homepage": "https://github.com/DungGramer/constancy#readme",
   "repository": {
@@ -55,11 +63,19 @@
     "email": "dung.dev.gramer@gmail.com"
   },
   "license": "MIT",
+  "funding": [
+    { "type": "github", "url": "https://github.com/sponsors/dunggramer" },
+    { "type": "patreon", "url": "https://patreon.com/dunggramer" },
+    { "type": "paypal", "url": "https://paypal.me/dunggramer" },
+    { "type": "thanks_dev", "url": "https://thanks.dev/u/gh/DungGramer" }
+  ],
   "publishConfig": {
     "access": "public",
     "provenance": true
   },
   "devDependencies": {
+    "@jazzer.js/core": "^4.0.0",
+    "@types/node": "^25.6.0",
     "@vitest/coverage-v8": "^4.1.4",
     "tsup": "^8.5.1",
     "typescript": "^6.0.2",

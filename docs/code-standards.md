@@ -9,9 +9,9 @@ Constancy is written in TypeScript with strict mode enabled. All source lives in
 ## Language & Syntax
 
 ### TypeScript Version
-- **Source:** TypeScript 5.x, strict mode
+- **Source:** TypeScript 6.x, strict mode
 - **Target:** ES2015 (tsconfig)
-- **Runtime Environment:** Node.js >= 14, modern bundlers
+- **Runtime Environment:** Node.js >= 20, modern bundlers
 
 ### Strict Mode Rules
 - `strict: true` in tsconfig (enables `noImplicitAny`, `strictNullChecks`, etc.)
@@ -93,23 +93,25 @@ type Freezable = object | Function;    // PascalCase type
 
 ```
 src/
-├── index.ts                           — barrel exports (5 categories)
-├── freeze-shallow.ts                  — freezeShallow() (shallow freeze)
-├── deep-freeze.ts                     — deepFreeze() (recursive freeze)
-├── cached-builtins.ts                 — cached Object/Reflect references
-├── immutable-view.ts                  — immutableView(), isImmutableView(), assertImmutableView()
-├── immutable-collection-views.ts      — immutableMapView(), immutableSetView()
-├── snapshot.ts                        — snapshot() (clone + freeze)
-├── secure-snapshot.ts                 — secureSnapshot() (null proto + getters)
-├── tamper-evident.ts                  — tamperEvident() + hash verification
-├── vault.ts                           — vault() (closure isolation)
-├── verification.ts                    — isDeepFrozen(), assertDeepFrozen()
-├── check-runtime-integrity.ts         — checkRuntimeIntegrity() detection
-├── types.ts                           — DeepReadonly<T>, Freezable, Vault<T>, etc.
-└── utils.ts                           — isFreezable()
+├── index.ts                              — barrel exports (5 categories)
+├── freeze-shallow.ts                     — freezeShallow() (shallow freeze)
+├── deep-freeze.ts                        — deepFreeze() (recursive freeze)
+├── freeze-deep-internal.ts               — deepClone() + freezeDeep() helpers
+├── cached-builtins.ts                    — cached Object/Reflect references (12 builtins)
+├── immutable-view.ts                     — immutableView(), isImmutableView(), assertImmutableView()
+├── immutable-view-collection-wraps.ts    — wrapMapMethod(), wrapSetMethod() helpers
+├── immutable-collection-views.ts         — ImmutableMap/Set classes
+├── snapshot.ts                           — snapshot() (clone + freeze)
+├── secure-snapshot.ts                    — secureSnapshot() (null proto + getters) [CC 17→10]
+├── tamper-evident.ts                     — tamperEvident() + hash verification [CC 22→6]
+├── vault.ts                              — vault() (closure isolation)
+├── verification.ts                       — isDeepFrozen(), assertDeepFrozen()
+├── check-runtime-integrity.ts            — checkRuntimeIntegrity() (12 builtins)
+├── types.ts                              — DeepReadonly<T>, Freezable, Vault<T>, etc.
+└── utils.ts                              — isFreezable()
 ```
 
-Each file has single responsibility. Shared utilities go in `utils.ts`. Cached references in `cached-builtins.ts`. Exports grouped in `index.ts` by category: Freeze, View, Snapshot, Isolation, Verification.
+Each file has single responsibility. Shared utilities go in `utils.ts`. Cached references in `cached-builtins.ts`. Extracted helpers in dedicated modules (freeze-deep-internal, immutable-view-collection-wraps) reduce cognitive complexity. Exports grouped in `index.ts` by category: Freeze, View, Snapshot, Isolation, Verification.
 
 ### Module Structure
 
@@ -308,10 +310,11 @@ describe('constancy()', () => {
 4. **Descriptive test names** — test name should read as a specification sentence
 
 ### Coverage Requirements
-- **Statement Coverage:** >= 95% (current: 96.85%)
-- **Branch Coverage:** >= 90% (current: 90.96%)
-- **Function Coverage:** 100% (current: 100%)
-- **Test Count:** >= 100 (current: 120)
+- **Line Coverage:** >= 95% (current: 98%+)
+- **Branch Coverage:** >= 90% (current: 98%+)
+- **Function Coverage:** >= 100% (current: 100%)
+- **Test Count:** >= 100 (current: 228+)
+- **Fuzz Testing:** 4 Jazzer.js targets for enhanced edge case discovery
 
 ---
 
@@ -350,10 +353,12 @@ Always run `typecheck` before publishing.
 ```json
 {
   "devDependencies": {
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.2",
     "tsup": "^8.5.1",
-    "vitest": "^4.1.3",
-    "@vitest/coverage-v8": "^4.1.3"
+    "vitest": "^4.1.4",
+    "@vitest/coverage-v8": "^4.1.4",
+    "@jazzer.js/core": "^4.0.0",
+    "@types/node": "^25.6.0"
   }
   // NO "dependencies" section
 }
@@ -361,23 +366,28 @@ Always run `typecheck` before publishing.
 
 Rules:
 1. Never add runtime dependencies without strong justification
-2. Dev dependencies only for build/test tooling
+2. Dev dependencies only for build/test/fuzz tooling
 3. Review alternatives before any new dependency
+4. Fuzz testing via Jazzer.js for edge case discovery
+5. TypeScript 6.x and Node >=20 for modern tooling
 
 ---
 
 ## Code Quality Standards
 
 ### Complexity
+- Cognitive Complexity: < 10 per function (refactored to extract complex helpers)
 - Cyclomatic Complexity: < 5 per function
 - Function Length: < 50 lines
 - Nesting Depth: < 3 levels
+- **Refactored examples:** secureSnapshot (CC 17→10), stableStringify (CC 22→6)
 
 ### Readability
 - Clear, descriptive variable names
 - JSDoc for all exported symbols
 - 2-space indentation
 - Line length: < 100 characters preferred
+- Extracted helper functions reduce cognitive load (wrapMapMethod, wrapSetMethod, isNonPlainObject, secureNestedValue, stringifyPrimitive, stringifyObjectKeys)
 
 ---
 
@@ -452,17 +462,20 @@ Semantic Versioning (SemVer): `MAJOR.MINOR.PATCH`
 
 Before publishing a new version:
 
-- [ ] All 169 tests passing (`npm test`)
+- [ ] All 228+ tests passing (`npm test`)
+- [ ] Fuzz tests passing (`npm run fuzz`)
 - [ ] No type errors (`npm run typecheck`)
 - [ ] Build succeeds (`npm run build`)
-- [ ] Coverage >= 95% (`npm run test:coverage` — currently 96.46%)
-- [ ] All 12 test files passing (freeze-shallow, deep-freeze, cached-builtins, immutable-view, immutable-collection-views, snapshot, vault, secure-snapshot, tamper-evident, verification, check-runtime-integrity, api-protection)
-- [ ] Statements >= 96% (defend edge cases in tamper-evident, secure-snapshot, vault)
+- [ ] Coverage >= 95% (`npm run test:coverage` — currently 98%+)
+- [ ] All 12 test files passing (constancy, deep-freeze, cached-builtins, immutable-proxy, immutable-collections, lock, vault, secure, tamper-proof, verify, runtime-integrity, api-protection)
+- [ ] Line coverage >= 98% (edge cases in tamper-evident, secure-snapshot, vault, proxy traps)
+- [ ] Cognitive complexity refactored (< 10 per function)
 - [ ] Version bumped in `package.json`
-- [ ] `CHANGELOG.md` updated with new API names and 5-category organization
-- [ ] Commit follows conventional format
-- [ ] `npm publish` executed
-- [ ] GitHub release created
+- [ ] `CHANGELOG.md` updated with new API names, 5-category organization, security fixes
+- [ ] Commit follows conventional format (feat/fix/chore/refactor/test/docs)
+- [ ] `npm publish` executed (SLSA 3 provenance auto-generated)
+- [ ] GitHub release created with signature verification
+- [ ] Codecov coverage report validated
 
 ---
 

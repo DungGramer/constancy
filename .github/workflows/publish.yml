@@ -8,12 +8,15 @@ on:
 permissions: read-all
 
 jobs:
-  # Run CI tests before building
-  # Elevate permissions so nested semgrep/trivy jobs can upload SARIF
+  # Run CI tests before building.
+  # - Elevate permissions so nested semgrep/trivy jobs can upload SARIF.
+  # - secrets: inherit required — reusable workflows don't auto-receive caller
+  #   secrets, so SONAR_TOKEN / CODECOV_TOKEN would otherwise be empty.
   ci:
     permissions:
       contents: read
       security-events: write
+    secrets: inherit
     uses: ./.github/workflows/ci.yml
 
   # SLSA 3 isolated build — generates provenance attestation

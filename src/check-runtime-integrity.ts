@@ -6,6 +6,7 @@ import {
   _reflectGet, _reflectHas, _reflectGetOwnPropertyDescriptor,
   _reflectGetPrototypeOf, _reflectIsExtensible,
   _objectPrototypeKeysFingerprint,
+  _fingerprintSort,
 } from './cached-builtins';
 
 declare function structuredClone<T>(value: T): T;
@@ -13,6 +14,36 @@ declare function structuredClone<T>(value: T): T;
 export interface IntegrityResult {
   readonly intact: boolean;
   readonly compromised: readonly string[];
+}
+
+// Table-driven builtin checks — keeps checkRuntimeIntegrity() below SonarCloud's
+// cognitive-complexity threshold (audit I2/I5).
+const BUILTIN_CHECKS: readonly [string, () => boolean][] = [
+  ['Object.freeze', () => Object.freeze !== _freeze],
+  ['Object.isFrozen', () => Object.isFrozen !== _isFrozen],
+  ['Object.getOwnPropertyDescriptor', () => Object.getOwnPropertyDescriptor !== _getOwnPropertyDescriptor],
+  ['Object.defineProperty', () => Object.defineProperty !== _defineProperty],
+  ['Object.create', () => Object.create !== _create],
+  ['Reflect.ownKeys', () => Reflect.ownKeys !== _ownKeys],
+  ['ArrayBuffer.isView', () => ArrayBuffer.isView !== _isView],
+  ['Proxy', () => Proxy !== _Proxy],
+  ['Reflect', () => typeof Reflect !== 'object' || Reflect === null],
+  ['structuredClone', () => typeof structuredClone === 'function' && structuredClone !== _structuredClone],
+  ['JSON.stringify', () => JSON.stringify !== _jsonStringify],
+  ['Array.isArray', () => Array.isArray !== _isArray],
+  ['Reflect.get', () => Reflect.get !== _reflectGet],
+  ['Reflect.has', () => Reflect.has !== _reflectHas],
+  ['Reflect.getOwnPropertyDescriptor', () => Reflect.getOwnPropertyDescriptor !== _reflectGetOwnPropertyDescriptor],
+  ['Reflect.getPrototypeOf', () => Reflect.getPrototypeOf !== _reflectGetPrototypeOf],
+  ['Reflect.isExtensible', () => Reflect.isExtensible !== _reflectIsExtensible],
+];
+
+function computeObjectPrototypeFingerprint(): string {
+  const keys = _ownKeys(Object.prototype);
+  const normalized = keys.map(k =>
+    typeof k === 'symbol' ? k.description ?? 'sym' : String(k)
+  ).sort(_fingerprintSort);
+  return keys.length + ':' + normalized.join(',');
 }
 
 /**
@@ -25,40 +56,11 @@ export interface IntegrityResult {
  * @returns Frozen result with `intact` flag and list of compromised builtins
  */
 export function checkRuntimeIntegrity(): IntegrityResult {
-  const compromised: string[] = [];
+  const compromised: string[] = BUILTIN_CHECKS
+    .filter(([, check]) => check())
+    .map(([name]) => name);
 
-  if (Object.freeze !== _freeze) compromised.push('Object.freeze');
-  if (Object.isFrozen !== _isFrozen) compromised.push('Object.isFrozen');
-  if (Object.getOwnPropertyDescriptor !== _getOwnPropertyDescriptor)
-    compromised.push('Object.getOwnPropertyDescriptor');
-  if (Object.defineProperty !== _defineProperty)
-    compromised.push('Object.defineProperty');
-  if (Object.create !== _create) compromised.push('Object.create');
-  if (Reflect.ownKeys !== _ownKeys) compromised.push('Reflect.ownKeys');
-  if (ArrayBuffer.isView !== _isView) compromised.push('ArrayBuffer.isView');
-  if (Proxy !== _Proxy) compromised.push('Proxy');
-  if (typeof Reflect !== 'object' || Reflect === null) compromised.push('Reflect');
-  if (typeof structuredClone === 'function' && structuredClone !== _structuredClone)
-    compromised.push('structuredClone');
-  if (JSON.stringify !== _jsonStringify) compromised.push('JSON.stringify');
-  if (Array.isArray !== _isArray) compromised.push('Array.isArray');
-
-  // Reflect.* used by immutable-view handler (audit I2)
-  if (Reflect.get !== _reflectGet) compromised.push('Reflect.get');
-  if (Reflect.has !== _reflectHas) compromised.push('Reflect.has');
-  if (Reflect.getOwnPropertyDescriptor !== _reflectGetOwnPropertyDescriptor)
-    compromised.push('Reflect.getOwnPropertyDescriptor');
-  if (Reflect.getPrototypeOf !== _reflectGetPrototypeOf)
-    compromised.push('Reflect.getPrototypeOf');
-  if (Reflect.isExtensible !== _reflectIsExtensible)
-    compromised.push('Reflect.isExtensible');
-
-  // Object.prototype pollution detection (audit I5)
-  // Sort must be locale-independent to match module-load fingerprint across machines.
-  const nowKeys = _ownKeys(Object.prototype);
-  const nowFingerprint = nowKeys.length + ':' +
-    nowKeys.map(k => typeof k === 'symbol' ? k.description ?? 'sym' : String(k)).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)).join(',');
-  if (nowFingerprint !== _objectPrototypeKeysFingerprint) {
+  if (computeObjectPrototypeFingerprint() !== _objectPrototypeKeysFingerprint) {
     compromised.push('Object.prototype');
   }
 

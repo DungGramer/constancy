@@ -120,6 +120,44 @@ function isFrozenDescriptor(target: object, prop: string | symbol): boolean {
   return !!desc && !desc.configurable && 'value' in desc && !desc.writable;
 }
 
+/** Sentinel returned when the get trap should fall through to default handling. */
+const GET_PASSTHROUGH = Symbol('pass-through');
+
+/**
+ * Try to resolve a method-level override for a property access (mutator block,
+ * subclass-deny, collection wrap, slotted bind). Returns GET_PASSTHROUGH if the
+ * caller should fall through to the default wrap-or-return logic. Extracted to
+ * keep the Proxy `get` trap below SonarCloud's cognitive-complexity threshold.
+ */
+function resolveGetOverride(
+  target: object,
+  prop: string | symbol,
+  value: unknown,
+  isSlotted: boolean,
+  makeProxy: <O extends object>(o: O) => O
+): unknown | typeof GET_PASSTHROUGH {
+  const blocked = getBlockedMutator(target, prop);
+  if (blocked) return () => rejectMutation(blocked);
+
+  if (isSlotted && isSuspectSlottedMethod(target, prop, value)) {
+    return () => rejectMutation(`invoke subclass method "${String(prop)}"`);
+  }
+
+  if (target instanceof Map) {
+    const wrapped = wrapMapMethod(target, prop, makeProxy);
+    if (wrapped !== null) return wrapped;
+  } else if (target instanceof Set) {
+    const wrapped = wrapSetMethod(target, prop, makeProxy);
+    if (wrapped !== null) return wrapped;
+  }
+
+  if (isSlotted && typeof value === 'function') {
+    return (value as Function).bind(target);
+  }
+
+  return GET_PASSTHROUGH;
+}
+
 /** Create a Proxy that blocks all mutations on obj */
 function createImmutableProxy<T extends object>(obj: T): T {
   if (proxyCache.has(obj)) return proxyCache.get(obj) as T;
@@ -136,30 +174,8 @@ function createImmutableProxy<T extends object>(obj: T): T {
         ? _reflectGet(target, prop)
         : _reflectGet(target, prop, receiver);
 
-      // Block mutation methods on built-in types
-      const blocked = getBlockedMutator(target, prop);
-      if (blocked) return () => rejectMutation(blocked);
-
-      // Block subclass-defined methods on slotted types (V3 defense):
-      // any function property that is not in the known read-method allow-list
-      // is treated as a potential mutator even if not named in MUTATOR_MAP.
-      if (isSlotted && isSuspectSlottedMethod(target, prop, value)) {
-        return () => rejectMutation(`invoke subclass method "${String(prop)}"`);
-      }
-
-      // Wrap value-returning Map/Set methods so returned objects are proxied
-      if (target instanceof Map) {
-        const wrapped = wrapMapMethod(target, prop, createImmutableProxy);
-        if (wrapped !== null) return wrapped;
-      } else if (target instanceof Set) {
-        const wrapped = wrapSetMethod(target, prop, createImmutableProxy);
-        if (wrapped !== null) return wrapped;
-      }
-
-      // Bind non-mutator methods to real target for internal slot access
-      if (isSlotted && typeof value === 'function') {
-        return (value as Function).bind(target);
-      }
+      const override = resolveGetOverride(target, prop, value, isSlotted, createImmutableProxy);
+      if (override !== GET_PASSTHROUGH) return override;
 
       // Lazily wrap nested objects. Respect Proxy invariant §10.5.8:
       // non-writable + non-configurable props must return exact value.

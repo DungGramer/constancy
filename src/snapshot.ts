@@ -4,6 +4,25 @@ import { isFreezable } from './utils';
 import { _ownKeys, _getOwnPropertyDescriptor, _isArray } from './cached-builtins';
 
 /**
+ * Yield every child value reachable from a container node for prototype-nullification
+ * traversal. Split out of nullifyPlainPrototypes to keep cognitive complexity low.
+ */
+function* childrenOf(node: object): Generator<unknown> {
+  if (_isArray(node)) {
+    yield* node;
+    return;
+  }
+  if (node instanceof Map || node instanceof Set) {
+    yield* node.values();
+    return;
+  }
+  for (const key of _ownKeys(node)) {
+    const desc = _getOwnPropertyDescriptor(node, key);
+    if (desc && 'value' in desc) yield desc.value;
+  }
+}
+
+/**
  * Recursively sever Object.prototype from every plain-object node in the tree.
  * Preserves built-in types (Array, Date, Map, Set, RegExp, TypedArray) so their
  * methods keep working. Blocks prototype pollution leakage into snapshot output
@@ -11,27 +30,16 @@ import { _ownKeys, _getOwnPropertyDescriptor, _isArray } from './cached-builtins
  */
 function nullifyPlainPrototypes(node: unknown, seen: WeakSet<object>): void {
   if (node === null || typeof node !== 'object') return;
-  if (seen.has(node as object)) return;
-  seen.add(node as object);
+  if (seen.has(node)) return;
+  seen.add(node);
 
   // Only touch pristine plain objects; preserve Array, Date, Map, Set, etc.
   if (Object.getPrototypeOf(node) === Object.prototype) {
     Object.setPrototypeOf(node, null);
   }
 
-  if (_isArray(node)) {
-    for (const item of node) nullifyPlainPrototypes(item, seen);
-  } else if (node instanceof Map) {
-    for (const v of node.values()) nullifyPlainPrototypes(v, seen);
-  } else if (node instanceof Set) {
-    for (const v of node.values()) nullifyPlainPrototypes(v, seen);
-  } else {
-    for (const key of _ownKeys(node)) {
-      const desc = _getOwnPropertyDescriptor(node, key);
-      if (desc && 'value' in desc) {
-        nullifyPlainPrototypes(desc.value, seen);
-      }
-    }
+  for (const child of childrenOf(node)) {
+    nullifyPlainPrototypes(child, seen);
   }
 }
 

@@ -55,19 +55,19 @@ describe('Layer 0 — freeze bypasses', () => {
     expect(container.buf[0]).toBe(99);
   });
 
-  it('BYPASS F4: accessor properties skipped — getter returns fresh mutable object', () => {
+  it('F4 fix: accessor getters remain unfrozen but isDeepFrozen now reports it', () => {
     const obj = {
       get leak(): { mut: boolean } { return { mut: true }; },
     };
     deepFreeze(obj);
 
-    // BYPASS: getter return value is a *new* object each call, never frozen
+    // Documented limitation — getter return value is a new object each call
     const r = obj.leak;
     r.mut = false;
     expect(r.mut).toBe(false);
 
-    // And isDeepFrozen cannot detect the leak (I1)
-    expect(isDeepFrozen(obj)).toBe(true);
+    // Fix: isDeepFrozen now correctly flags the accessor case (was false positive)
+    expect(isDeepFrozen(obj)).toBe(false);
   });
 
   it('BYPASS F5: well-known symbol method on polluted prototype subverts iteration', () => {

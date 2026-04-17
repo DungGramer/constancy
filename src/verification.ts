@@ -5,6 +5,12 @@ import { isFreezable } from './utils';
  * Returns true if `val` and all nested data properties are frozen.
  * Primitives are always considered deeply frozen.
  * Handles circular references via WeakSet.
+ *
+ * **Accessor handling (audit F4/I1):** Accessor (getter/setter) descriptors
+ * return `false`. The getter could return a fresh mutable object on every
+ * call, so we cannot prove deep-immutability without invoking it (which has
+ * side effects and is not safe to do here). The previous behavior silently
+ * skipped accessors and returned a false-positive `true`.
  */
 export function isDeepFrozen(val: unknown, seen: WeakSet<object> = new WeakSet()): boolean {
   if (!isFreezable(val)) return true;
@@ -17,7 +23,12 @@ export function isDeepFrozen(val: unknown, seen: WeakSet<object> = new WeakSet()
 
   for (const key of _ownKeys(obj)) {
     const desc = _getOwnPropertyDescriptor(obj, key);
-    if (desc && 'value' in desc && !isDeepFrozen(desc.value, seen)) {
+    if (!desc) continue;
+    if (!('value' in desc)) {
+      // Accessor descriptor — cannot prove the getter returns a frozen value.
+      return false;
+    }
+    if (!isDeepFrozen(desc.value, seen)) {
       return false;
     }
   }

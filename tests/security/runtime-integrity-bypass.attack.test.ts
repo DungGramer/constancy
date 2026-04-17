@@ -9,12 +9,13 @@ describe('Layer 4 — verification & runtime integrity bypasses', () => {
     // no cross-test state to reset (each test undoes its own poison)
   });
 
-  it('BYPASS I1: isDeepFrozen false positive when accessor returns mutable object', () => {
+  it('I1 fix: isDeepFrozen returns false when an accessor is present', () => {
     const obj = deepFreeze({
       get leak(): { mut: boolean } { return { mut: true }; },
     });
-    // BYPASS: isDeepFrozen only checks data descriptors, not getter returns
-    expect(isDeepFrozen(obj)).toBe(true);
+    // Fix: accessor descriptors cannot be proven deep-frozen → return false
+    expect(isDeepFrozen(obj)).toBe(false);
+    // Leak still possible in the underlying object — but caller is now warned
     const leaked = obj.leak;
     leaked.mut = false;
     expect(leaked.mut).toBe(false);

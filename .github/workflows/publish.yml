@@ -28,9 +28,10 @@ jobs:
       actions: read
     uses: slsa-framework/slsa-github-generator/.github/workflows/builder_nodejs_slsa3.yml@f7dd8c54c2067bafc12ca7a55595d5ee9b75204a # v2.1.0
     with:
-      # Only 'build' needed — ci: job already ran full test suite above.
-      # SLSA VM produces deterministic artifact + provenance.
-      run-scripts: "build"
+      # SLSA v2.1.0 builder does NOT auto-install deps — 'ci' script maps to
+      # 'npm ci' (defined in package.json) so devDependencies (tsup) are
+      # available when 'build' runs inside the SLSA VM.
+      run-scripts: "ci, build"
       node-version: 22
 
   # Publish with SLSA provenance to npm

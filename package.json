@@ -19,6 +19,7 @@
     "dist"
   ],
   "scripts": {
+    "ci": "npm ci",
     "build": "tsup",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

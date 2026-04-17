@@ -120,42 +120,44 @@ function isFrozenDescriptor(target: object, prop: string | symbol): boolean {
   return !!desc && !desc.configurable && 'value' in desc && !desc.writable;
 }
 
-/** Sentinel returned when the get trap should fall through to default handling. */
-const GET_PASSTHROUGH = Symbol('pass-through');
-
 /**
  * Try to resolve a method-level override for a property access (mutator block,
- * subclass-deny, collection wrap, slotted bind). Returns GET_PASSTHROUGH if the
- * caller should fall through to the default wrap-or-return logic. Extracted to
- * keep the Proxy `get` trap below SonarCloud's cognitive-complexity threshold.
+ * subclass-deny, collection wrap, slotted bind). Returns `{ handled: false }`
+ * when the caller should fall through to default wrap-or-return logic.
+ * Extracted to keep the Proxy `get` trap below SonarCloud's cognitive-complexity
+ * threshold.
  */
+type GetOverride =
+  | { handled: true; value: unknown }
+  | { handled: false };
+
 function resolveGetOverride(
   target: object,
   prop: string | symbol,
   value: unknown,
   isSlotted: boolean,
   makeProxy: <O extends object>(o: O) => O
-): unknown | typeof GET_PASSTHROUGH {
+): GetOverride {
   const blocked = getBlockedMutator(target, prop);
-  if (blocked) return () => rejectMutation(blocked);
+  if (blocked) return { handled: true, value: () => rejectMutation(blocked) };
 
   if (isSlotted && isSuspectSlottedMethod(target, prop, value)) {
-    return () => rejectMutation(`invoke subclass method "${String(prop)}"`);
+    return { handled: true, value: () => rejectMutation(`invoke subclass method "${String(prop)}"`) };
   }
 
   if (target instanceof Map) {
     const wrapped = wrapMapMethod(target, prop, makeProxy);
-    if (wrapped !== null) return wrapped;
+    if (wrapped !== null) return { handled: true, value: wrapped };
   } else if (target instanceof Set) {
     const wrapped = wrapSetMethod(target, prop, makeProxy);
-    if (wrapped !== null) return wrapped;
+    if (wrapped !== null) return { handled: true, value: wrapped };
   }
 
   if (isSlotted && typeof value === 'function') {
-    return (value as Function).bind(target);
+    return { handled: true, value: value.bind(target) };
   }
 
-  return GET_PASSTHROUGH;
+  return { handled: false };
 }
 
 /** Create a Proxy that blocks all mutations on obj */
@@ -175,7 +177,7 @@ function createImmutableProxy<T extends object>(obj: T): T {
         : _reflectGet(target, prop, receiver);
 
       const override = resolveGetOverride(target, prop, value, isSlotted, createImmutableProxy);
-      if (override !== GET_PASSTHROUGH) return override;
+      if (override.handled) return override.value;
 
       // Lazily wrap nested objects. Respect Proxy invariant §10.5.8:
       // non-writable + non-configurable props must return exact value.

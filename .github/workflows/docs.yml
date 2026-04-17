@@ -2,7 +2,7 @@ name: Deploy Docs
 
 on:
   push:
-    branches: [feat/vitepress-docs]
+    branches: [master]
     paths:
       - 'docs/**'
       - '.github/workflows/docs.yml'

@@ -51,6 +51,40 @@ function hasInternalSlots(target: object): boolean {
     || target instanceof Date;
 }
 
+/**
+ * Known non-mutating read methods on built-in collection types. Any string-keyed
+ * function property NOT in this allow-list (and NOT on the class itself) is
+ * treated as a potential subclass custom mutator and blocked. Closes audit V3:
+ * `class Evil extends Map { sneakSet(k,v){this.set(k,v)} }` previously bypassed
+ * the deny list because `sneakSet` was not named in MUTATOR_MAP.
+ */
+const MAP_READ_METHODS = new Set([
+  'get', 'has', 'keys', 'values', 'entries', 'forEach',
+]);
+const SET_READ_METHODS = new Set([
+  'has', 'keys', 'values', 'entries', 'forEach',
+]);
+const WEAKMAP_READ_METHODS = new Set(['get', 'has']);
+const WEAKSET_READ_METHODS = new Set(['has']);
+const DATE_READ_METHODS = new Set([
+  'getTime', 'getFullYear', 'getUTCFullYear', 'getMonth', 'getUTCMonth',
+  'getDate', 'getUTCDate', 'getDay', 'getUTCDay',
+  'getHours', 'getUTCHours', 'getMinutes', 'getUTCMinutes',
+  'getSeconds', 'getUTCSeconds', 'getMilliseconds', 'getUTCMilliseconds',
+  'getTimezoneOffset', 'valueOf',
+  'toString', 'toDateString', 'toTimeString', 'toLocaleString',
+  'toLocaleDateString', 'toLocaleTimeString', 'toUTCString', 'toISOString',
+  'toJSON',
+]);
+
+const READ_METHOD_MAP: [Function, Set<string>][] = [
+  [Map, MAP_READ_METHODS],
+  [Set, SET_READ_METHODS],
+  [WeakMap, WEAKMAP_READ_METHODS],
+  [WeakSet, WEAKSET_READ_METHODS],
+  [Date, DATE_READ_METHODS],
+];
+
 /** Check if prop is a blocked mutator method on target. Returns method name or null. */
 function getBlockedMutator(target: object, prop: string | symbol): string | null {
   if (typeof prop !== 'string') return null;
@@ -59,6 +93,25 @@ function getBlockedMutator(target: object, prop: string | symbol): string | null
   }
   if (Array.isArray(target) && ARRAY_MUTATORS.has(prop)) return prop;
   return null;
+}
+
+/**
+ * For objects with internal slots (Map/Set/WeakMap/WeakSet/Date), return true
+ * if `prop` is a function that is NOT a known read method. These are treated
+ * as subclass-defined mutators and blocked regardless of their actual behavior
+ * (defensive deny-by-default — audit V3).
+ */
+function isSuspectSlottedMethod(target: object, prop: string | symbol, value: unknown): boolean {
+  if (typeof prop !== 'string' || typeof value !== 'function') return false;
+  for (const [ctor, reads] of READ_METHOD_MAP) {
+    if (target instanceof ctor) {
+      // Allow own-prototype standard reads; block everything else that's a function.
+      if (reads.has(prop)) return false;
+      // Also allow Symbol.toStringTag etc. which are handled earlier (typeof !== 'string').
+      return true;
+    }
+  }
+  return false;
 }
 
 /** Check if a property descriptor is non-writable + non-configurable (Proxy invariant) */
@@ -81,6 +134,13 @@ function createImmutableProxy<T extends object>(obj: T): T {
       // Block mutation methods on built-in types
       const blocked = getBlockedMutator(target, prop);
       if (blocked) return () => rejectMutation(blocked);
+
+      // Block subclass-defined methods on slotted types (V3 defense):
+      // any function property that is not in the known read-method allow-list
+      // is treated as a potential mutator even if not named in MUTATOR_MAP.
+      if (isSlotted && isSuspectSlottedMethod(target, prop, value)) {
+        return () => rejectMutation(`invoke subclass method "${String(prop)}"`);
+      }
 
       // Wrap value-returning Map/Set methods so returned objects are proxied
       if (target instanceof Map) {

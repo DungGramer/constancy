@@ -23,31 +23,28 @@ describe('Layer 1 — immutableView bypasses', () => {
     expect(inst.value).toBe(42);
   });
 
-  it('BYPASS V3: custom method on Map subclass bypasses mutator list', () => {
+  it('V3 fix: custom subclass method on Map view is now blocked (deny-by-default)', () => {
     class EvilMap<K, V> extends Map<K, V> {
       sneakSet(k: K, v: V): void { this.set(k, v); }
     }
     const m = new EvilMap<string, number>([['k', 1]]);
     const view = immutableView(m);
 
-    // `set` is blocked ...
     expect(() => (view as any).set('k', 2)).toThrow(TypeError);
-
-    // BYPASS: `sneakSet` is not in MUTATOR_MAP; view.sneakSet is bound to target (line 87-88)
-    // and invokes the real Map.prototype.set through `this=target`
-    (view as any).sneakSet('k', 999);
-    expect(m.get('k')).toBe(999);
+    // Fix: sneakSet is not in the read-method allow-list → blocked
+    expect(() => (view as any).sneakSet('k', 999)).toThrow(/invoke subclass method "sneakSet"/);
+    expect(m.get('k')).toBe(1); // original unchanged
   });
 
-  it('BYPASS V3b: custom method on Set subclass bypasses mutator list', () => {
+  it('V3b fix: custom subclass method on Set view is now blocked', () => {
     class EvilSet<T> extends Set<T> {
       sneakAdd(v: T): void { this.add(v); }
     }
     const s = new EvilSet<number>([1]);
     const view = immutableView(s);
     expect(() => (view as any).add(2)).toThrow(TypeError);
-    (view as any).sneakAdd(2);
-    expect(s.has(2)).toBe(true);
+    expect(() => (view as any).sneakAdd(2)).toThrow(/invoke subclass method "sneakAdd"/);
+    expect(s.has(2)).toBe(false);
   });
 
   it('BYPASS V5: custom toJSON() leaks a forged representation through JSON.stringify', () => {

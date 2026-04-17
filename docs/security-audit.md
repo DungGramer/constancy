@@ -2,7 +2,33 @@
 
 **Target:** `constancy` v3.0.0 — zero-dependency immutability toolkit (7 defense layers).
 **Scope:** All `src/*.ts`, all 7 defense levels (`freezeShallow` → `tamperEvident`), verification utilities, cross-cutting supply-chain vectors.
-**Mode:** Adversarial audit authorized by owner. No production code modified; attack PoCs live under `tests/security/`.
+**Mode:** Adversarial audit authorized by owner.
+
+## Status (2026-04-17)
+
+All HIGH and MEDIUM severity vectors listed below have now shipped fixes on
+`security/fix-audit-issues`. See issues #16–#27 for per-vector notes and
+`tests/security/*.attack.test.ts` for the PoC tests (each `BYPASS:` test has
+been rewritten as a `FIX:` regression asserting the fixed behavior).
+
+| Vector | Issue | Fix |
+|---|---|---|
+| C5 prototype pollution | [#27](https://github.com/DungGramer/constancy/issues/27) | `Object.freeze(ImmutableMap/Set.prototype)` at module load |
+| P2/P3 cached builtins unused | [#22](https://github.com/DungGramer/constancy/issues/22) | Swap raw `structuredClone`/`JSON.stringify` for cached; extend self-test |
+| V2/I2 raw Reflect + integrity gaps | [#23](https://github.com/DungGramer/constancy/issues/23) | Cache Reflect.get/has/gOPD/gPO/iE; integrity check covers them + Object.prototype fingerprint |
+| X1 accessor silent drop | [#19](https://github.com/DungGramer/constancy/issues/19) | `secureSnapshot` now throws on accessor descriptors |
+| S1 proto pollution | [#17](https://github.com/DungGramer/constancy/issues/17) | `snapshot` walks tree, sets `[[Prototype]]` to null on plain objects |
+| V3 subclass mutator bypass | [#18](https://github.com/DungGramer/constancy/issues/18) | Deny-by-default for function props on slotted types; read-method allow-list |
+| T2/T3/T4 hash collisions | [#16](https://github.com/DungGramer/constancy/issues/16) | `stableStringify` reaches into Map/Set/Date/RegExp internal slots |
+| F1 prototype chain | [#24](https://github.com/DungGramer/constancy/issues/24) | `deepFreeze(val, { freezePrototypeChain: true })` opt-in |
+| F4/I1 accessor false-positive | [#25](https://github.com/DungGramer/constancy/issues/25) | `isDeepFrozen` returns false when an accessor is encountered |
+| V1 missing traps | [#20](https://github.com/DungGramer/constancy/issues/20) | apply trap rejects mutable receivers; construct trap rejects `new view()` |
+| T1/T7 djb2 + getter | [#26](https://github.com/DungGramer/constancy/issues/26) | 64-bit fingerprint (djb2+sdbm); accessors emit structural marker instead of being invoked |
+| V5 toJSON bypass | [#21](https://github.com/DungGramer/constancy/issues/21) | `immutableView(val, { blockToJSON: true })` opt-in |
+
+Below sections document the original findings for historical context.
+
+---
 
 ---
 

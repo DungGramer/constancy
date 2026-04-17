@@ -1,6 +1,14 @@
 import type { DeepReadonly } from './types';
 import { isFreezable } from './utils';
-import { _Proxy } from './cached-builtins';
+import {
+  _Proxy,
+  _ownKeys,
+  _reflectGet,
+  _reflectHas,
+  _reflectGetOwnPropertyDescriptor,
+  _reflectGetPrototypeOf,
+  _reflectIsExtensible,
+} from './cached-builtins';
 import { wrapMapMethod, wrapSetMethod } from './immutable-view-collection-wraps';
 
 const proxyCache = new WeakMap<object, object>();
@@ -55,7 +63,7 @@ function getBlockedMutator(target: object, prop: string | symbol): string | null
 
 /** Check if a property descriptor is non-writable + non-configurable (Proxy invariant) */
 function isFrozenDescriptor(target: object, prop: string | symbol): boolean {
-  const desc = Reflect.getOwnPropertyDescriptor(target, prop);
+  const desc = _reflectGetOwnPropertyDescriptor(target, prop);
   return !!desc && !desc.configurable && 'value' in desc && !desc.writable;
 }
 
@@ -67,8 +75,8 @@ function createImmutableProxy<T extends object>(obj: T): T {
     get(target, prop, receiver) {
       const isSlotted = hasInternalSlots(target);
       const value = isSlotted
-        ? Reflect.get(target, prop)
-        : Reflect.get(target, prop, receiver);
+        ? _reflectGet(target, prop)
+        : _reflectGet(target, prop, receiver);
 
       // Block mutation methods on built-in types
       const blocked = getBlockedMutator(target, prop);
@@ -104,13 +112,13 @@ function createImmutableProxy<T extends object>(obj: T): T {
     setPrototypeOf() { return rejectMutation('set prototype'); },
     preventExtensions() { return rejectMutation('prevent extensions'); },
     getPrototypeOf(target) {
-      const proto = Reflect.getPrototypeOf(target);
+      const proto = _reflectGetPrototypeOf(target);
       return proto && isFreezable(proto) ? createImmutableProxy(proto) : proto;
     },
-    has(target, prop) { return Reflect.has(target, prop); },
-    ownKeys(target) { return Reflect.ownKeys(target); },
+    has(target, prop) { return _reflectHas(target, prop); },
+    ownKeys(target) { return _ownKeys(target); },
     getOwnPropertyDescriptor(target, prop) {
-      const desc = Reflect.getOwnPropertyDescriptor(target, prop);
+      const desc = _reflectGetOwnPropertyDescriptor(target, prop);
       if (desc && 'value' in desc && isFreezable(desc.value)) {
         if (!isFrozenDescriptor(target, prop)) {
           return { ...desc, value: createImmutableProxy(desc.value as object) };
@@ -118,7 +126,7 @@ function createImmutableProxy<T extends object>(obj: T): T {
       }
       return desc;
     },
-    isExtensible(target) { return Reflect.isExtensible(target); },
+    isExtensible(target) { return _reflectIsExtensible(target); },
   });
 
   proxyCache.set(obj, proxy);

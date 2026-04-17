@@ -20,22 +20,40 @@ describe('Layer 4 — verification & runtime integrity bypasses', () => {
     expect(leaked.mut).toBe(false);
   });
 
-  it('BYPASS I2: checkRuntimeIntegrity does NOT cover Reflect.get', () => {
-    // Poisoning Reflect.get breaks vitest internals mid-test; instead we just assert
-    // the cached builtins list does NOT include these Reflect methods.
-    const result = checkRuntimeIntegrity();
-    // Current build returns intact — our integrity checker never looks at Reflect.get etc.
-    expect(result.intact).toBe(true);
-    expect(result.compromised).not.toContain('Reflect.get');
-    expect(result.compromised).not.toContain('Reflect.set');
-    expect(result.compromised).not.toContain('Reflect.has');
+  it('I2 fix: Reflect.has poisoning detected', () => {
+    const original = Reflect.has;
+    let result: { intact: boolean; compromised: readonly string[] };
+    (Reflect as any).has = () => false;
+    try {
+      result = checkRuntimeIntegrity();
+    } finally {
+      (Reflect as any).has = original;
+    }
+    // Assert AFTER restoration — expect() uses Reflect.has internally
+    expect(result.intact).toBe(false);
+    expect(result.compromised).toContain('Reflect.has');
   });
 
-  it('BYPASS I2b: checkRuntimeIntegrity does NOT cover Reflect.getOwnPropertyDescriptor', () => {
-    const result = checkRuntimeIntegrity();
-    expect(result.compromised).not.toContain('Reflect.getOwnPropertyDescriptor');
-    expect(result.compromised).not.toContain('Reflect.getPrototypeOf');
-    expect(result.compromised).not.toContain('Reflect.isExtensible');
+  it('I2b fix: Reflect.getOwnPropertyDescriptor / getPrototypeOf / isExtensible all covered', () => {
+    const originals = {
+      gopd: Reflect.getOwnPropertyDescriptor,
+      gpo: Reflect.getPrototypeOf,
+      ie: Reflect.isExtensible,
+    };
+    let result: { intact: boolean; compromised: readonly string[] };
+    (Reflect as any).getOwnPropertyDescriptor = () => undefined;
+    (Reflect as any).getPrototypeOf = () => null;
+    (Reflect as any).isExtensible = () => false;
+    try {
+      result = checkRuntimeIntegrity();
+    } finally {
+      (Reflect as any).getOwnPropertyDescriptor = originals.gopd;
+      (Reflect as any).getPrototypeOf = originals.gpo;
+      (Reflect as any).isExtensible = originals.ie;
+    }
+    expect(result.compromised).toContain('Reflect.getOwnPropertyDescriptor');
+    expect(result.compromised).toContain('Reflect.getPrototypeOf');
+    expect(result.compromised).toContain('Reflect.isExtensible');
   });
 
   it('BYPASS I3: Map.prototype poisoning undetected', () => {
@@ -60,14 +78,15 @@ describe('Layer 4 — verification & runtime integrity bypasses', () => {
     }
   });
 
-  it('BYPASS I5: Object.prototype getter injection undetected', () => {
+  it('I5 fix: Object.prototype pollution detected via own-keys fingerprint', () => {
     try {
       Object.defineProperty(Object.prototype, '_leak', {
         configurable: true,
         get() { return 'LEAK'; },
       });
-      // No hook in checkRuntimeIntegrity to notice proto pollution
-      expect(checkRuntimeIntegrity().intact).toBe(true);
+      const result = checkRuntimeIntegrity();
+      expect(result.intact).toBe(false);
+      expect(result.compromised).toContain('Object.prototype');
       expect(({} as any)._leak).toBe('LEAK');
     } finally {
       delete (Object.prototype as any)._leak;

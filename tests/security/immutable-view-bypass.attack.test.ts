@@ -69,20 +69,20 @@ describe('Layer 1 — immutableView bypasses', () => {
     expect((view as typeof original).count).toBe(9);
   });
 
-  it('V2 surface: handler uses raw Reflect.* — in-test poison subverts view', () => {
+  it('V2 fix: handler uses cached Reflect.* — in-test poison does NOT subvert view', () => {
     const originalReflectGet = Reflect.get;
     const obj = { secret: 'safe' };
     const view = immutableView(obj);
     let observed: unknown;
+    (Reflect as any).get = (t: any, k: any) =>
+      k === 'secret' ? 'POISONED' : (originalReflectGet as any)(t, k);
     try {
-      // Close over original so the poison replacement doesn't recurse
-      (Reflect as any).get = (t: any, k: any) =>
-        k === 'secret' ? 'POISONED' : (originalReflectGet as any)(t, k);
       observed = (view as typeof obj).secret;
     } finally {
       (Reflect as any).get = originalReflectGet;
     }
-    expect(observed).toBe('POISONED');
+    // Fix: view reads via cached _reflectGet, ignoring post-import poison
+    expect(observed).toBe('safe');
   });
 
   it('BYPASS V4: Symbol-keyed mutator names skipped — future-proofing gap', () => {

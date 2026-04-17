@@ -5,15 +5,12 @@ import { describe, it, expect } from 'vitest';
 import { secureSnapshot } from '../../src/index';
 
 describe('Layer 2.5 — secureSnapshot bypasses', () => {
-  it('BYPASS X1: accessor-only properties SILENTLY DROPPED (data loss)', () => {
+  it('X1 fix: accessor-only properties now throw TypeError (no more silent drop)', () => {
     const input = {
       get important(): number { return 42; },
       plain: 1,
     };
-    const sec = secureSnapshot(input) as Record<string, unknown>;
-    // BYPASS: `important` is silently removed from the output — caller cannot tell
-    expect(sec.important).toBeUndefined();
-    expect(sec.plain).toBe(1);
+    expect(() => secureSnapshot(input)).toThrow(/accessor property "important" is not supported/);
   });
 
   it('BYPASS X2: nested non-plain type aborts entire call (DoS on hostile payload)', () => {

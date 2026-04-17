@@ -2,6 +2,42 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.0.1] - 2026-04-17
+
+### Security Fixes — 12 Audit Vectors Closed
+
+12 security vulnerabilities from the v3.0.0 audit (#16–#26) have been resolved. All fixes maintain backward compatibility; behavior corrections affect only unsafe patterns.
+
+#### Freeze Layer
+- **F1:** `deepFreeze(val, { freezePrototypeChain: true })` opt-in flag to freeze prototype chain and defend against post-freeze poisoning of `ClassName.prototype.method` (#24)
+- **F4/I1:** `isDeepFrozen()` now returns `false` when accessor descriptors are present, preventing false-positive on side-effectful getters (#25)
+
+#### View (Proxy) Layer
+- **V1:** `immutableView()` now includes `apply` trap (rejects mutable receivers) and `construct` trap (rejects `new view()`) to close function-binding bypass (#20)
+- **V3:** `immutableView()` on Map/Set/WeakMap/WeakSet subclasses now denies all function props not in explicit read-method allow-list (#18)
+- **V5:** `immutableView(val, { blockToJSON: true })` opt-in flag prevents `JSON.stringify(view)` from invoking target's `toJSON()` (#21)
+
+#### Snapshot Layer
+- **S1:** `snapshot()` / `lock()` now severs `[[Prototype]]` to null for plain objects (preserves built-in prototypes) to block prototype pollution (#17)
+- **X1:** `secureSnapshot()` now throws `TypeError` on accessor properties instead of silently dropping them (#19)
+
+#### Tamper-Evident Layer
+- **T1/T7:** `stableStringify()` upgraded to 64-bit fingerprint (djb2+sdbm); accessor descriptors now emit structural marker instead of invoking getters (#26)
+- **T2/T3/T4:** `stableStringify()` now reaches into Map/Set/Date/RegExp internal slots to detect data mutations; blocks hash collisions (#16)
+
+#### Cross-Cutting (Preload/Supply-Chain)
+- **P2/P3:** Internal usage of `structuredClone` and `JSON.stringify` now use cached references `_structuredClone` and `_jsonStringify` (#22)
+- **I2/I5:** `checkRuntimeIntegrity()` expanded to verify Reflect.get/has/getOwnPropertyDescriptor/getPrototypeOf/isExtensible and Object.prototype key-set fingerprint (#23)
+
+### Test Suite
+- +50 security regression tests in `tests/security/` (7 files, all BYPASS tests rewritten as FIX assertions)
+- Total tests: 228+ passing
+
+### Backward Compatibility
+All fixes are backward compatible. New optional parameters (`freezePrototypeChain`, `blockToJSON`) default to `false`. Behavior corrections (null-proto snap, accessor throw) only affect unsafe patterns that violated the documented contract.
+
+---
+
 ## [3.0.0] - 2026-04-16
 
 ### Breaking Changes

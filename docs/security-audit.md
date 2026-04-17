@@ -6,27 +6,28 @@
 
 ## Status (2026-04-17)
 
-All HIGH and MEDIUM severity vectors listed below have now shipped fixes on
-`security/fix-audit-issues`. See issues #16–#27 for per-vector notes and
-`tests/security/*.attack.test.ts` for the PoC tests (each `BYPASS:` test has
-been rewritten as a `FIX:` regression asserting the fixed behavior).
+All 12 HIGH and MEDIUM severity vectors have been fixed and shipped in **v3.0.1** (issues #16–#26). See changelog and release notes for detailed changes. `tests/security/*.attack.test.ts` regression tests assert all fixes.
 
-| Vector | Issue | Fix |
+| Vector | Issue | Status |
 |---|---|---|
-| C5 prototype pollution | [#27](https://github.com/DungGramer/constancy/issues/27) | `Object.freeze(ImmutableMap/Set.prototype)` at module load |
-| P2/P3 cached builtins unused | [#22](https://github.com/DungGramer/constancy/issues/22) | Swap raw `structuredClone`/`JSON.stringify` for cached; extend self-test |
-| V2/I2 raw Reflect + integrity gaps | [#23](https://github.com/DungGramer/constancy/issues/23) | Cache Reflect.get/has/gOPD/gPO/iE; integrity check covers them + Object.prototype fingerprint |
-| X1 accessor silent drop | [#19](https://github.com/DungGramer/constancy/issues/19) | `secureSnapshot` now throws on accessor descriptors |
-| S1 proto pollution | [#17](https://github.com/DungGramer/constancy/issues/17) | `snapshot` walks tree, sets `[[Prototype]]` to null on plain objects |
-| V3 subclass mutator bypass | [#18](https://github.com/DungGramer/constancy/issues/18) | Deny-by-default for function props on slotted types; read-method allow-list |
-| T2/T3/T4 hash collisions | [#16](https://github.com/DungGramer/constancy/issues/16) | `stableStringify` reaches into Map/Set/Date/RegExp internal slots |
-| F1 prototype chain | [#24](https://github.com/DungGramer/constancy/issues/24) | `deepFreeze(val, { freezePrototypeChain: true })` opt-in |
-| F4/I1 accessor false-positive | [#25](https://github.com/DungGramer/constancy/issues/25) | `isDeepFrozen` returns false when an accessor is encountered |
-| V1 missing traps | [#20](https://github.com/DungGramer/constancy/issues/20) | apply trap rejects mutable receivers; construct trap rejects `new view()` |
-| T1/T7 djb2 + getter | [#26](https://github.com/DungGramer/constancy/issues/26) | 64-bit fingerprint (djb2+sdbm); accessors emit structural marker instead of being invoked |
-| V5 toJSON bypass | [#21](https://github.com/DungGramer/constancy/issues/21) | `immutableView(val, { blockToJSON: true })` opt-in |
+| F1 prototype chain | [#24](https://github.com/DungGramer/constancy/issues/24) | Shipped in v3.0.1 — `deepFreeze(val, { freezePrototypeChain: true })` opt-in |
+| F4/I1 accessor false-positive | [#25](https://github.com/DungGramer/constancy/issues/25) | Shipped in v3.0.1 — `isDeepFrozen` returns false on accessor descriptors |
+| V1 missing traps | [#20](https://github.com/DungGramer/constancy/issues/20) | Shipped in v3.0.1 — apply/construct traps added |
+| V3 subclass mutator bypass | [#18](https://github.com/DungGramer/constancy/issues/18) | Shipped in v3.0.1 — deny-by-default for slotted type function props |
+| V5 toJSON bypass | [#21](https://github.com/DungGramer/constancy/issues/21) | Shipped in v3.0.1 — `immutableView(val, { blockToJSON: true })` opt-in |
+| S1 proto pollution | [#17](https://github.com/DungGramer/constancy/issues/17) | Shipped in v3.0.1 — `snapshot` severs `[[Prototype]]` to null on plain objects |
+| X1 accessor silent drop | [#19](https://github.com/DungGramer/constancy/issues/19) | Shipped in v3.0.1 — `secureSnapshot` throws on accessor descriptors |
+| T1/T7 djb2 + getter | [#26](https://github.com/DungGramer/constancy/issues/26) | Shipped in v3.0.1 — 64-bit fingerprint; accessors emit structural marker |
+| T2/T3/T4 hash collisions | [#16](https://github.com/DungGramer/constancy/issues/16) | Shipped in v3.0.1 — `stableStringify` reaches Map/Set/Date/RegExp internal slots |
+| P2/P3 cached builtins unused | [#22](https://github.com/DungGramer/constancy/issues/22) | Shipped in v3.0.1 — swap to cached `_structuredClone`/`_jsonStringify` |
+| V2/I2 raw Reflect + integrity gaps | [#23](https://github.com/DungGramer/constancy/issues/23) | Shipped in v3.0.1 — cache Reflect methods; integrity check extended |
+| C5 prototype pollution | [#27](https://github.com/DungGramer/constancy/issues/27) | Shipped in v3.0.0 — `Object.freeze(ImmutableMap/Set.prototype)` at load |
 
-Below sections document the original findings for historical context.
+---
+
+## Historical Reference
+
+Below sections document the original audit findings for historical context.
 
 ---
 

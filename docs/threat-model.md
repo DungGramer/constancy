@@ -18,13 +18,13 @@
 | API | Blocks mutation through ref? | Data truly frozen? | Severs original ref? | Detects tampering? |
 |-----|-----------------------------|--------------------|---------------------|--------------------|
 | `freezeShallow()` | Yes (strict mode) | No | No | No |
-| `deepFreeze()` | Yes (strict mode) | Yes | No | No |
-| `immutableView()` | Yes (always throws) | **No — VIEW only** | No | No |
+| `deepFreeze(val, {freezePrototypeChain?})` | Yes (strict mode) | Yes | No | No |
+| `immutableView(val, {blockToJSON?})` | Yes (always throws) | **No — VIEW only** | No | No |
 | `snapshot()` / `lock()` | Yes (frozen) | **Yes** (clone+freeze) | **Yes** (clone) | No |
 | `vault()` | N/A (copy-on-read) | Yes (closure) | Yes (clone) | No |
 | `secureSnapshot()` | Yes (getter-only) | Yes (closure store) | Yes (snapshot) | No |
-| `tamperEvident()` | N/A (copy-on-read) | Yes (closure) | Yes (clone) | Yes (hash) |
-| `checkRuntimeIntegrity()` | N/A | N/A | N/A | Yes (builtin check) |
+| `tamperEvident()` | N/A (copy-on-read) | Yes (closure) | Yes (clone) | Yes (64-bit hash) |
+| `checkRuntimeIntegrity()` | N/A | N/A | N/A | Yes (12 builtin checks) |
 
 ## The View vs Snapshot Distinction
 

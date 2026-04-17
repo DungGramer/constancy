@@ -12,9 +12,10 @@
 [![OSV Scanner](https://img.shields.io/github/actions/workflow/status/DungGramer/constancy/osv-scanner.yml?label=OSV)](https://github.com/DungGramer/constancy/actions/workflows/osv-scanner.yml)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/12562/badge)](https://www.bestpractices.dev/projects/12562)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=DungGramer_constancy&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=DungGramer_constancy)
-[![SLSA 3](https://slsa.dev/images/gh-badge-level3.svg)](https://slsa.dev)
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/DungGramer/constancy/badge)](https://scorecard.dev/viewer/?uri=github.com/DungGramer/constancy)
 [![Fuzz Testing](https://img.shields.io/github/actions/workflow/status/DungGramer/constancy/fuzz.yml?label=fuzz&logo=github)](https://github.com/DungGramer/constancy/actions/workflows/fuzz.yml)
+[![SLSA 3](https://slsa.dev/images/gh-badge-level3.svg)](https://slsa.dev)
+[![Socket Badge](https://badge.socket.dev/npm/package/constancy/latest)](https://socket.dev/npm/package/constancy)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/DungGramer/constancy/badge)](https://scorecard.dev/viewer/?uri=github.com/DungGramer/constancy)
 [![codecov](https://codecov.io/github/DungGramer/constancy/graph/badge.svg?token=8IRXIRBIR0)](https://codecov.io/github/DungGramer/constancy)
 [![license](https://img.shields.io/npm/l/constancy.svg)](https://github.com/DungGramer/constancy/blob/master/LICENSE)
 
@@ -109,32 +110,42 @@ obj.a = 2;      // Ignored
 obj.b.c = 3;    // Works — nested not frozen
 ```
 
-#### `deepFreeze<T>(val: T)` — Recursive Freeze
+#### `deepFreeze<T>(val: T, options?)` — Recursive Freeze
 
 Recursively freezes all nested objects. Handles circular refs, Symbol keys, TypedArrays, and accessor descriptors.
+
+Options:
+- `freezePrototypeChain?: boolean` (default `false`) — Freeze prototype chain to defend against post-freeze poisoning
 
 ```typescript
 const obj = deepFreeze({ nested: { count: 0 }, tags: ['a'] });
 obj.nested.count = 1; // Ignored
 obj.tags.push('b');   // Ignored
+
+// Opt-in: freeze prototype chain
+const hardened = deepFreeze(MyClass.prototype, { freezePrototypeChain: true });
 ```
 
 ### View (Proxy, No Clone)
 
-#### `immutableView<T>(obj: T)` — Proxy-Based VIEW
+#### `immutableView<T>(obj: T, options?)` — Proxy-Based VIEW
 
 Wraps object in a Proxy that throws `TypeError` on ANY mutation through this reference. Does NOT freeze or clone the original.
 
 **This is a VIEW, not a snapshot.** Original is still mutable if you retain the reference. Use `snapshot()` for true immutability.
+
+Options:
+- `blockToJSON?: boolean` (default `false`) — Prevent `JSON.stringify(view)` from invoking target's `toJSON()`
 
 ```typescript
 const data = immutableView({ items: [], config: { theme: 'dark' } });
 data.items.push(1);              // TypeError: object is immutable
 data.config.theme = 'light';     // TypeError: object is immutable
 
-const m = immutableView(new Map([['a', 1]]));
+const m = immutableView(new Map([['a', 1]]), { blockToJSON: true });
 m.set('b', 2);                   // TypeError: Cannot set: object is immutable
 m.get('a');                      // Works — read access allowed
+JSON.stringify(m);               // Blocks toJSON() invocation
 ```
 
 #### `isImmutableView<T>(val: any)` — Check Immutable View
@@ -203,18 +214,21 @@ const snap = lock({ count: 0 });  // Same as snapshot()
 
 #### `secureSnapshot<T>(obj: T)` — Hardened Snapshot
 
-Vault with null prototype + getter-only descriptors. Max protection for critical data.
+Vault with null prototype + getter-only descriptors. Max protection for critical data. Throws on accessor properties to prevent silent data loss.
 
 ```typescript
 const cfg = secureSnapshot({ db: { host: 'localhost', port: 5432 } });
 cfg.db.host;                              // 'localhost'
 cfg.db.host = 'evil';                     // TypeError (strict)
 Object.defineProperty(cfg, 'db', {value: null}); // TypeError — non-configurable
+
+// Throws if object contains accessor properties
+secureSnapshot({ get x() { return 1; } }); // TypeError
 ```
 
 #### `tamperEvident<T>(val: T)` — Hash-Verified Snapshot
 
-Stores value in vault + computes djb2 structural hash. Detects any internal corruption.
+Stores value in vault + computes 64-bit structural hash (djb2+sdbm). Detects any internal corruption by reaching into Map/Set/Date/RegExp internal slots.
 
 ```typescript
 const protected = tamperEvident({ version: '1.0', data: [1, 2, 3] });

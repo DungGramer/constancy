@@ -2,9 +2,23 @@
 
 High-level view of planned work, current initiatives, and completed milestones.
 
-## Current Release: 3.0.0
+## Current Release: 3.0.1
 
-### Completed Initiatives
+## Completed Releases
+
+### v3.0.1 (Completed 2026-04-17)
+- [x] 12 security audit vectors closed (issues #16–#26)
+  - Freeze: F1 prototype-chain opt-in, F4/I1 accessor false-positive
+  - View: V1 apply/construct traps, V3 deny-by-default, V5 blockToJSON opt-in
+  - Snapshot: S1 null-proto, X1 accessor throws
+  - Tamper-Evident: T1/T7 64-bit hash, T2/T3/T4 slot scanning
+  - Cross-Cutting: P2/P3 cache usage, I2/I5 integrity expansion
+- [x] +50 security regression tests in `tests/security/`
+- [x] CHANGELOG.md, package.json, and all documentation updated
+
+**Status:** All security fixes shipped. v3.0.1 released. Total tests: 228+ passing.
+
+### v3.0.0 (Completed 2026-04-16)
 
 #### Security Hardening & Testing (Completed 2026-04-17)
 - [x] SLSA 3 provenance integration (CI upgraded to slsa-framework/slsa-github-generator)

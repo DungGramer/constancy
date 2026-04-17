@@ -465,9 +465,10 @@ Code Push (master branch)
     │         └─ npm ci
     │         └─ npm run typecheck
     │         └─ npm run build
-    │         └─ npm test (228+ tests)
+    │         └─ npm test (228+ tests, includes 50+ security regression tests)
     │         └─ npm run test:coverage
     │         └─ Integration with Codecov
+    │       • Security regression tests: `tests/security/*` assert fixes for audit vectors F1-V5, S1, X1, T1-T4, T7, P2/P3, I2/I5
     │
     ├─→ [codeql.yml — SAST]
     │       • CodeQL analysis for security vulnerabilities

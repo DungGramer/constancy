@@ -5,7 +5,7 @@
 **Constancy** is a lightweight TypeScript utility library for deep immutability with multi-level security defenses. Zero dependencies, dual ESM/CJS export, 228 tests, 98%+ coverage, SLSA 3 provenance, fuzz testing.
 
 **Repository:** https://github.com/DungGramer/constancy
-**Version:** 3.0.0
+**Version:** 3.0.1
 **License:** MIT
 **Author:** DungGramer
 **Size:** ESM 5.3KB, CJS 5.9KB
@@ -49,7 +49,15 @@ constancy/
 │   ├── tamper-proof.test.ts          # 11 tests (hash verification)
 │   ├── verify.test.ts                # 12 tests (verification utils)
 │   ├── runtime-integrity.test.ts     # 4 tests (builtin integrity)
-│   └── api-protection.test.ts        # 34+ tests (mutation defense, structuredClone tampering)
+│   ├── api-protection.test.ts        # 34+ tests (mutation defense, structuredClone tampering)
+│   └── security/                     # Security regression tests (v3.0.1 audit fixes)
+│       ├── freeze-bypass.attack.test.ts
+│       ├── immutable-view-bypass.attack.test.ts
+│       ├── snapshot-bypass.attack.test.ts
+│       ├── secure-snapshot-bypass.attack.test.ts
+│       ├── tamper-evident-bypass.attack.test.ts
+│       ├── tamper-evidence-accessor.attack.test.ts
+│       └── verification-bypass.attack.test.ts
 ├── fuzz/                              # Fuzz testing targets (Jazzer.js)
 │   ├── fuzz-deep-freeze.js           # deepFreeze() fuzzer
 │   ├── fuzz-immutable-view.js        # immutableView() fuzzer

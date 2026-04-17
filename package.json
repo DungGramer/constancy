@@ -1,6 +1,6 @@
 {
   "name": "constancy",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Zero-dependency immutability toolkit: freeze, view, snapshot, vault, and integrity verification",
   "type": "module",
   "main": "./dist/index.cjs",

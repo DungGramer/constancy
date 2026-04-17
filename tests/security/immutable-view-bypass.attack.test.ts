@@ -43,14 +43,27 @@ describe('Layer 1 — immutableView bypasses', () => {
     expect(s.has(2)).toBe(false);
   });
 
-  it('BYPASS V5: custom toJSON() leaks a forged representation through JSON.stringify', () => {
+  it('V5 default: custom toJSON() is still honored (documented limitation)', () => {
     const obj = {
       safe: 1,
       toJSON(): unknown { return { safe: 'FORGED', secret: 'EXFIL' }; },
     };
     const view = immutableView(obj);
-    // BYPASS: JSON path invokes target's toJSON; proxy observes nothing
+    // Default behavior preserved for compat — JSON.stringify invokes target.toJSON
     expect(JSON.stringify(view)).toBe('{"safe":"FORGED","secret":"EXFIL"}');
+  });
+
+  it('V5 fix: opt-in blockToJSON suppresses the target toJSON and uses Proxy-observed serialization', () => {
+    const obj = {
+      safe: 1,
+      toJSON(): unknown { return { safe: 'FORGED', secret: 'EXFIL' }; },
+    };
+    const view = immutableView(obj, { blockToJSON: true });
+    // toJSON hidden by the get trap → default serialization walks own enumerable props.
+    // toJSON itself is a function → JSON.stringify drops it. Output reflects the real data.
+    const out = JSON.parse(JSON.stringify(view));
+    expect(out).toEqual({ safe: 1 });
+    expect(out.secret).toBeUndefined();
   });
 
   it('documented V8: view is a VIEW — original reference still mutable', () => {

@@ -126,6 +126,11 @@ function createImmutableProxy<T extends object>(obj: T): T {
 
   const proxy = new _Proxy(obj, {
     get(target, prop, receiver) {
+      // Audit V5: when blockToJSON is set, hide the target's toJSON so
+      // JSON.stringify(view) falls back to default Proxy-observable serialization.
+      const opts = targetOptionsCache.get(target);
+      if (opts?.blockToJSON && prop === 'toJSON') return undefined;
+
       const isSlotted = hasInternalSlots(target);
       const value = isSlotted
         ? _reflectGet(target, prop)
@@ -221,6 +226,22 @@ function createImmutableProxy<T extends object>(obj: T): T {
   return proxy;
 }
 
+/** Options for {@link immutableView}. */
+export interface ImmutableViewOptions {
+  /**
+   * When `true`, suppresses the target's `toJSON()` method through the view.
+   * `JSON.stringify(view)` then serializes via default own-enumerable iteration
+   * (through the Proxy's ownKeys/getOwnPropertyDescriptor traps) instead of
+   * calling the target-supplied `toJSON`. Blocks audit vector V5 where an
+   * attacker-supplied `toJSON` could forge serialized output that the Proxy
+   * traps never observed. Default `false` for backwards compatibility.
+   */
+  readonly blockToJSON?: boolean;
+}
+
+/** Target → options cache. Keyed on raw target so the get trap can consult it. */
+const targetOptionsCache = new WeakMap<object, ImmutableViewOptions>();
+
 /**
  * Wrap a value in a deeply immutable Proxy **view**.
  *
@@ -232,16 +253,27 @@ function createImmutableProxy<T extends object>(obj: T): T {
  * Use `snapshot()` for true data immutability (clone + freeze),
  * or `vault()` for complete reference isolation (closure + copy-on-read).
  *
+ * **V5 note (`toJSON` bypass):** By default the target's `toJSON()` method
+ * (if any) is called directly by `JSON.stringify` — the Proxy cannot
+ * intercept that path, so an attacker-supplied `toJSON` could forge the
+ * serialized output. Pass `{ blockToJSON: true }` to suppress `toJSON` and
+ * force default property-based serialization through the Proxy traps.
+ *
  * @param val - Value to wrap
+ * @param options - Optional behavior tweaks
  * @returns A Proxy-based immutable view, typed as DeepReadonly<T>
  *
  * @example
  * const obj = immutableView({ nested: { count: 0 } });
  * obj.nested.count = 1; // throws TypeError
  */
-export function immutableView<T>(val: T): T extends object ? DeepReadonly<T> : T {
+export function immutableView<T>(val: T, options: ImmutableViewOptions = {}): T extends object ? DeepReadonly<T> : T {
   if (!isFreezable(val)) return val as T extends object ? DeepReadonly<T> : T;
-  return createImmutableProxy(val as object) as T extends object ? DeepReadonly<T> : T;
+  if (options.blockToJSON) {
+    targetOptionsCache.set(val as object, options);
+  }
+  const proxy = createImmutableProxy(val as object);
+  return proxy as T extends object ? DeepReadonly<T> : T;
 }
 
 /**

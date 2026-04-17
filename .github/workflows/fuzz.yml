@@ -30,7 +30,7 @@ jobs:
       - run: npm ci
       - run: npm run build
       - name: Run fuzzer (${{ matrix.target }})
-        run: npx jazzer fuzz/${{ matrix.target }}.js --timeout=60
+        run: npx jazzer fuzz/${{ matrix.target }}.js --timeout=60 -- -max_total_time=120
       - uses: actions/upload-artifact@v7
         if: failure()
         with:

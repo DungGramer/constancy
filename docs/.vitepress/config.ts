@@ -5,6 +5,20 @@ export default defineConfig({
   title: 'Constancy',
   description:
     'Immutability primitives for JavaScript — from freeze to isolated snapshots.',
+
+  head: [
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/constancy/favicon.svg' }],
+    ['meta', { name: 'theme-color', content: '#3c82f6' }],
+    ['meta', { property: 'og:type', content: 'website' }],
+    ['meta', { property: 'og:title', content: 'Constancy — Immutability primitives for JavaScript' }],
+    ['meta', { property: 'og:description', content: 'Five models of immutability: Freeze, View, Snapshot, Isolation, Verification. Zero deps, SLSA 3.' }],
+    ['meta', { property: 'og:url', content: 'https://dunggramer.github.io/constancy/' }],
+    ['meta', { name: 'twitter:card', content: 'summary' }],
+    ['meta', { name: 'twitter:title', content: 'Constancy' }],
+    ['meta', { name: 'twitter:description', content: 'Immutability primitives for JavaScript.' }],
+    ['meta', { name: 'keywords', content: 'immutability, freeze, proxy, snapshot, vault, tamper-evident, javascript, typescript, security' }],
+  ],
+
   lastUpdated: true,
   cleanUrls: true,
   sitemap: { hostname: 'https://dunggramer.github.io/constancy/' },
@@ -57,6 +71,11 @@ export default defineConfig({
       label: 'Tiếng Việt',
       lang: 'vi',
       link: '/vi/',
+      head: [
+        ['meta', { property: 'og:title', content: 'Constancy — Nguyên hàm bất biến cho JavaScript' }],
+        ['meta', { property: 'og:description', content: 'Năm model bất biến: Freeze, View, Snapshot, Isolation, Verification. Zero deps, SLSA 3.' }],
+        ['meta', { name: 'twitter:description', content: 'Nguyên hàm bất biến cho JavaScript.' }],
+      ],
       themeConfig: {
         nav: [
           { text: 'Hướng dẫn', link: '/vi/guide/getting-started' },

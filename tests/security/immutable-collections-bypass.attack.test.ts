@@ -44,15 +44,14 @@ describe('Layer 1.5 — immutable collection view bypasses', () => {
     expect(view.has(original)).toBe(false);
   });
 
-  it('BYPASS C5: ImmutableMap.prototype mutable — attacker can replace get/values globally', () => {
-    const view = immutableMapView(new Map([['k', 1]]));
-    const proto = Object.getPrototypeOf(view);
-    const originalGet = proto.get;
-    try {
-      proto.get = function () { return 'HIJACKED'; };
-      expect(view.get('k') as unknown).toBe('HIJACKED');
-    } finally {
-      proto.get = originalGet;
-    }
+  it('C5 fix: ImmutableMap/Set prototypes are frozen — prototype pollution blocked', () => {
+    const mapView = immutableMapView(new Map([['k', 1]]));
+    const setView = immutableSetView(new Set([1]));
+    const mapProto = Object.getPrototypeOf(mapView);
+    const setProto = Object.getPrototypeOf(setView);
+    expect(Object.isFrozen(mapProto)).toBe(true);
+    expect(Object.isFrozen(setProto)).toBe(true);
+    expect(() => { mapProto.get = function () { return 'HIJACKED'; }; }).toThrow(TypeError);
+    expect(() => { setProto.has = function () { return false; }; }).toThrow(TypeError);
   });
 });

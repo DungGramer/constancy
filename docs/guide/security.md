@@ -1,3 +1,11 @@
+---
+title: "Security Guide"
+description: "How Constancy defends data at the JavaScript execution level and its known limitations."
+lastReviewed: 2026-04-17
+sourceLocale: en
+translationStatus: synced
+---
+
 # Security Guide
 
 ## Security Model

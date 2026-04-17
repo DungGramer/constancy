@@ -1,3 +1,11 @@
+---
+title: "Development Roadmap"
+description: "Planned work, current initiatives, and completed milestones."
+lastReviewed: 2026-04-17
+sourceLocale: en
+translationStatus: synced
+---
+
 # Development Roadmap
 
 High-level view of planned work, current initiatives, and completed milestones.

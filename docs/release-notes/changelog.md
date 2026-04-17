@@ -1,3 +1,11 @@
+---
+title: "Project Changelog"
+description: "All notable changes to Constancy, including security fixes and new features."
+lastReviewed: 2026-04-17
+sourceLocale: en
+translationStatus: synced
+---
+
 # Project Changelog
 
 All notable changes to the Constancy project are documented here.

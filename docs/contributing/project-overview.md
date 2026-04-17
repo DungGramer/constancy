@@ -1,3 +1,11 @@
+---
+title: "Project Overview"
+description: "Executive summary, goals, and product design record for the Constancy library."
+lastReviewed: 2026-04-17
+sourceLocale: en
+translationStatus: synced
+---
+
 # Constancy - Project Overview & PDR
 
 ## Executive Summary

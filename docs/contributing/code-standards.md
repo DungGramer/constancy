@@ -1,3 +1,11 @@
+---
+title: "Code Standards"
+description: "TypeScript strict-mode conventions, naming, file organization, and testing requirements."
+lastReviewed: 2026-04-17
+sourceLocale: en
+translationStatus: synced
+---
+
 # Constancy - Code Standards
 
 ## Overview

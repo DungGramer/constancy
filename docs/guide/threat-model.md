@@ -1,3 +1,11 @@
+---
+title: "Threat Model"
+description: "What Constancy protects against and what it explicitly does not cover."
+lastReviewed: 2026-04-17
+sourceLocale: en
+translationStatus: synced
+---
+
 # Threat Model
 
 ## What Constancy Protects

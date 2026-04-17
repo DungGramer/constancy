@@ -35,8 +35,17 @@ export function deepClone<T>(value: T): T {
 
 /** Recursively freeze an object graph; guards circular refs via WeakSet.
  *  Skips: TypedArray byte data, accessor (getter/setter) properties,
- *  prototype chain, Map/Set internal slots. See deepFreeze() JSDoc. */
-export function freezeDeep(obj: object, seen: WeakSet<object> = new WeakSet()): void {
+ *  Map/Set internal slots. See deepFreeze() JSDoc.
+ *
+ *  @param freezePrototypeChain — when true, also freezes the prototype of each
+ *    visited object. Blocks post-freeze prototype poisoning (audit F1). Never
+ *    freezes the canonical Object.prototype / Function.prototype / Array.prototype
+ *    which would break the entire runtime. */
+export function freezeDeep(
+  obj: object,
+  seen: WeakSet<object> = new WeakSet(),
+  freezePrototypeChain = false,
+): void {
   if (seen.has(obj)) return;
   seen.add(obj);
 
@@ -48,7 +57,16 @@ export function freezeDeep(obj: object, seen: WeakSet<object> = new WeakSet()): 
   for (const key of _ownKeys(obj)) {
     const desc = _getOwnPropertyDescriptor(obj, key);
     if (desc && 'value' in desc && isFreezable(desc.value)) {
-      freezeDeep(desc.value as object, seen);
+      freezeDeep(desc.value as object, seen, freezePrototypeChain);
+    }
+  }
+
+  if (freezePrototypeChain) {
+    const proto = Object.getPrototypeOf(obj);
+    // Skip canonical root prototypes to avoid breaking the runtime
+    if (proto && proto !== Object.prototype
+      && proto !== Function.prototype && proto !== Array.prototype) {
+      freezeDeep(proto, seen, freezePrototypeChain);
     }
   }
 

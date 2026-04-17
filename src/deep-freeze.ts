@@ -2,6 +2,21 @@ import type { DeepReadonly } from './types';
 import { isFreezable } from './utils';
 import { freezeDeep } from './freeze-deep-internal';
 
+/** Options for {@link deepFreeze}. */
+export interface DeepFreezeOptions {
+  /**
+   * Also freeze the prototype chain of every visited object.
+   * Defaults to `false` to preserve backwards compatibility.
+   *
+   * When `true`, any `ClassName.prototype` reachable from the value (and its
+   * nested objects) is frozen. This blocks post-freeze prototype poisoning
+   * (e.g. `Box.prototype.greet = evil` after `deepFreeze(new Box())`), at the
+   * cost of preventing legitimate prototype updates on those classes. See
+   * audit vector F1.
+   */
+  readonly freezePrototypeChain?: boolean;
+}
+
 /**
  * Deep-freeze a value recursively. Handles circular references,
  * Symbol keys, TypedArrays, and getter/setter descriptors.
@@ -30,10 +45,10 @@ import { freezeDeep } from './freeze-deep-internal';
  * // frozen.nested.a = 2;   // TypeError in strict mode
  * // frozen.arr[1].push(4); // TypeError in strict mode
  */
-export function deepFreeze<T>(val: T): T extends object ? DeepReadonly<T> : T {
+export function deepFreeze<T>(val: T, options: DeepFreezeOptions = {}): T extends object ? DeepReadonly<T> : T {
   if (!isFreezable(val)) {
     return val as T extends object ? DeepReadonly<T> : T;
   }
-  freezeDeep(val as object);
+  freezeDeep(val as object, undefined, options.freezePrototypeChain === true);
   return val as T extends object ? DeepReadonly<T> : T;
 }

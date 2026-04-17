@@ -7,20 +7,30 @@ import { describe, it, expect } from 'vitest';
 import { deepFreeze, freezeShallow, isDeepFrozen } from '../../src/index';
 
 describe('Layer 0 — freeze bypasses', () => {
-  it('BYPASS F1: prototype chain not traversed — poison class prototype after freeze', () => {
+  it('F1 default: prototype chain NOT frozen by default (backwards compat)', () => {
     class Box {
       value = 1;
       greet(): string { return 'hi'; }
     }
     const instance = new Box();
     deepFreeze(instance);
-
-    // Own prop `value` frozen
     expect(() => { (instance as any).value = 2; }).toThrow();
-
-    // BYPASS: prototype method still mutable — deepFreeze does not walk proto chain
+    // Documented default — prototype still mutable unless opt-in flag is used
     Box.prototype.greet = function () { return 'PWNED'; };
     expect(instance.greet()).toBe('PWNED');
+    Box.prototype.greet = function () { return 'hi'; }; // cleanup
+  });
+
+  it('F1 fix: opt-in freezePrototypeChain blocks post-freeze prototype poisoning', () => {
+    class Box {
+      value = 1;
+      greet(): string { return 'hi'; }
+    }
+    const instance = new Box();
+    deepFreeze(instance, { freezePrototypeChain: true });
+    expect(Object.isFrozen(Box.prototype)).toBe(true);
+    expect(() => { Box.prototype.greet = function () { return 'PWNED'; }; }).toThrow(TypeError);
+    expect(instance.greet()).toBe('hi');
   });
 
   it('documented F2: Map internal slots remain mutable after deepFreeze', () => {

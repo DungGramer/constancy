@@ -7,15 +7,17 @@ on:
     branches: [master]
 
 permissions:
-  actions: read
   contents: read
-  security-events: write
 
 jobs:
   scan-pr:
     if: github.event_name == 'pull_request'
     name: OSV Scan (PR)
-    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@v2.3.5
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@c51854704019a247608d928f370c98740469d4b5 # v2.3.5
     with:
       scan-args: |-
         --lockfile=package-lock.json
@@ -24,7 +26,11 @@ jobs:
   scan-push:
     if: github.event_name == 'push'
     name: OSV Scan (Push)
-    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.3.5
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@c51854704019a247608d928f370c98740469d4b5 # v2.3.5
     with:
       scan-args: |-
         --lockfile=package-lock.json

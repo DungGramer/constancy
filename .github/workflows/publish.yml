@@ -13,6 +13,8 @@ jobs:
     uses: ./.github/workflows/ci.yml
 
   # SLSA 3 isolated build — generates provenance attestation
+  # NOTE: slsa-framework/slsa-github-generator requires tag reference (not SHA);
+  # this is a known Scorecard exception for SLSA verified reusable workflows.
   build:
     needs: [ci]
     permissions:
@@ -29,14 +31,15 @@ jobs:
     needs: [build]
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
       id-token: write
     steps:
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.0.0
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
 
+      # NOTE: SLSA publish action must use tag reference per SLSA verification spec.
       - uses: slsa-framework/slsa-github-generator/actions/nodejs/publish@v2.1.0
         with:
           access: public

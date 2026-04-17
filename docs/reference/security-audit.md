@@ -1,3 +1,11 @@
+---
+title: "Security Audit"
+description: "Red-team bypass report and fix status for all 12 HIGH/MEDIUM vectors in v3.0.0."
+lastReviewed: 2026-04-17
+sourceLocale: en
+translationStatus: synced
+---
+
 # Constancy Security Audit — Red-Team Bypass Report
 
 **Target:** `constancy` v3.0.0 — zero-dependency immutability toolkit (7 defense layers).
@@ -63,18 +71,18 @@ The library successfully defends against the headline class of attack (`Object.f
 
 ## Layer 0 — `freezeShallow` / `deepFreeze`
 
-Source: [freeze-shallow.ts](../src/freeze-shallow.ts), [deep-freeze.ts](../src/deep-freeze.ts), [freeze-deep-internal.ts](../src/freeze-deep-internal.ts)
+Source: [freeze-shallow.ts](../../src/freeze-shallow.ts), [deep-freeze.ts](../../src/deep-freeze.ts), [freeze-deep-internal.ts](../../src/freeze-deep-internal.ts)
 
 | ID | Severity | Vector | File:Line | PoC |
 |---|---|---|---|---|
-| F1 | HIGH | Prototype chain not traversed; post-freeze poison of `ClassName.prototype.method` applies to already-frozen instances | [freeze-deep-internal.ts:37](../src/freeze-deep-internal.ts) | `tests/security/freeze-bypass.attack.test.ts` |
-| F2 | LOW (documented) | `Map`/`Set` internal slots mutable — `.set()` / `.add()` still work after `deepFreeze` | [freeze-deep-internal.ts:30-40](../src/freeze-deep-internal.ts) | — |
-| F3 | LOW (documented) | `TypedArray` byte data mutable after freeze | [freeze-deep-internal.ts:40](../src/freeze-deep-internal.ts) | — |
-| F4 | HIGH | Accessor descriptors skipped — `{ get x() { return {mut:true} } }`; each call returns fresh mutable object, `isDeepFrozen` still returns `true` | [freeze-deep-internal.ts:44](../src/freeze-deep-internal.ts), [verification.ts:20](../src/verification.ts) | ✓ |
-| F5 | MEDIUM | Well-known symbol methods on prototypes (`Array.prototype[Symbol.iterator]`) subvert iteration of frozen objects | [freeze-deep-internal.ts:42](../src/freeze-deep-internal.ts) | ✓ |
-| F6 | MEDIUM | `deepClone` uses raw `structuredClone`, not cached `_structuredClone` | [freeze-deep-internal.ts:18](../src/freeze-deep-internal.ts) | see P2 |
+| F1 | HIGH | Prototype chain not traversed; post-freeze poison of `ClassName.prototype.method` applies to already-frozen instances | [freeze-deep-internal.ts:37](../../src/freeze-deep-internal.ts) | `tests/security/freeze-bypass.attack.test.ts` |
+| F2 | LOW (documented) | `Map`/`Set` internal slots mutable — `.set()` / `.add()` still work after `deepFreeze` | [freeze-deep-internal.ts:30-40](../../src/freeze-deep-internal.ts) | — |
+| F3 | LOW (documented) | `TypedArray` byte data mutable after freeze | [freeze-deep-internal.ts:40](../../src/freeze-deep-internal.ts) | — |
+| F4 | HIGH | Accessor descriptors skipped — `{ get x() { return {mut:true} } }`; each call returns fresh mutable object, `isDeepFrozen` still returns `true` | [freeze-deep-internal.ts:44](../../src/freeze-deep-internal.ts), [verification.ts:20](../../src/verification.ts) | ✓ |
+| F5 | MEDIUM | Well-known symbol methods on prototypes (`Array.prototype[Symbol.iterator]`) subvert iteration of frozen objects | [freeze-deep-internal.ts:42](../../src/freeze-deep-internal.ts) | ✓ |
+| F6 | MEDIUM | `deepClone` uses raw `structuredClone`, not cached `_structuredClone` | [freeze-deep-internal.ts:18](../../src/freeze-deep-internal.ts) | see P2 |
 | F7 | LOW | `Error.prepareStackTrace` is a global hook; freezing an instance doesn't stop trace forging | — | ✓ |
-| F8 | LOW | Private class fields (`#prop`) are outside freeze — mutations through instance methods succeed | [freeze-deep-internal.ts:42](../src/freeze-deep-internal.ts) | ✓ |
+| F8 | LOW | Private class fields (`#prop`) are outside freeze — mutations through instance methods succeed | [freeze-deep-internal.ts:42](../../src/freeze-deep-internal.ts) | ✓ |
 | F9 | LOW | Revocable `Proxy` passed to `deepFreeze` can be revoked afterward, turning reads into DoS | — | ✓ |
 
 **Suggested fixes**
@@ -87,18 +95,18 @@ Source: [freeze-shallow.ts](../src/freeze-shallow.ts), [deep-freeze.ts](../src/d
 
 ## Layer 1 — `immutableView`
 
-Source: [immutable-view.ts](../src/immutable-view.ts), [immutable-view-collection-wraps.ts](../src/immutable-view-collection-wraps.ts)
+Source: [immutable-view.ts](../../src/immutable-view.ts), [immutable-view-collection-wraps.ts](../../src/immutable-view-collection-wraps.ts)
 
 | ID | Severity | Vector | File:Line | PoC |
 |---|---|---|---|---|
-| V1 | HIGH | Handler lacks `apply` + `construct` traps — wrapped function can be `.call()`/`.apply()`/`new`'d, mutating caller-supplied `this` | [immutable-view.ts:66-122](../src/immutable-view.ts) | ✓ |
-| V2 | MEDIUM | Handler uses raw `Reflect.get/getOwnPropertyDescriptor/getPrototypeOf/has/isExtensible/ownKeys` — none cached (only `Reflect.ownKeys` cached as `_ownKeys`, but handler line 111 uses raw `Reflect.ownKeys` anyway) | [immutable-view.ts:58,70,107,110-113,121](../src/immutable-view.ts) | ✓ |
-| V3 | HIGH | Custom mutator methods on `Map`/`Set` subclasses are not in `MUTATOR_MAP`; `view.customSet(k,v)` returns a method bound to the raw target and the mutation succeeds | [immutable-view.ts:47-54, 87-88](../src/immutable-view.ts) | ✓ |
-| V4 | LOW | `getBlockedMutator` only inspects string props; future Symbol-named mutator methods would escape (no current exploit — forward-looking) | [immutable-view.ts:48](../src/immutable-view.ts) | ✓ |
+| V1 | HIGH | Handler lacks `apply` + `construct` traps — wrapped function can be `.call()`/`.apply()`/`new`'d, mutating caller-supplied `this` | [immutable-view.ts:66-122](../../src/immutable-view.ts) | ✓ |
+| V2 | MEDIUM | Handler uses raw `Reflect.get/getOwnPropertyDescriptor/getPrototypeOf/has/isExtensible/ownKeys` — none cached (only `Reflect.ownKeys` cached as `_ownKeys`, but handler line 111 uses raw `Reflect.ownKeys` anyway) | [immutable-view.ts:58,70,107,110-113,121](../../src/immutable-view.ts) | ✓ |
+| V3 | HIGH | Custom mutator methods on `Map`/`Set` subclasses are not in `MUTATOR_MAP`; `view.customSet(k,v)` returns a method bound to the raw target and the mutation succeeds | [immutable-view.ts:47-54, 87-88](../../src/immutable-view.ts) | ✓ |
+| V4 | LOW | `getBlockedMutator` only inspects string props; future Symbol-named mutator methods would escape (no current exploit — forward-looking) | [immutable-view.ts:48](../../src/immutable-view.ts) | ✓ |
 | V5 | HIGH | `JSON.stringify(view)` calls target's `toJSON()` — attacker-supplied `toJSON` replaces serialized output. Proxy trap never fires for toJSON invocation. | — | ✓ |
 | V6 | HIGH | Same as V1 — no call-site receiver sandboxing | — | ✓ |
-| V7 | LOW | `wrapIterator` returns a plain generator object whose `.next` is writable — attacker can overwrite `next` to forge values | [immutable-view-collection-wraps.ts:11-29](../src/immutable-view-collection-wraps.ts) | ✓ |
-| V8 | LOW (documented) | View is a VIEW — retained original reference remains mutable | [immutable-view.ts:128](../src/immutable-view.ts) | ✓ |
+| V7 | LOW | `wrapIterator` returns a plain generator object whose `.next` is writable — attacker can overwrite `next` to forge values | [immutable-view-collection-wraps.ts:11-29](../../src/immutable-view-collection-wraps.ts) | ✓ |
+| V8 | LOW (documented) | View is a VIEW — retained original reference remains mutable | [immutable-view.ts:128](../../src/immutable-view.ts) | ✓ |
 
 **Suggested fixes**
 
@@ -110,14 +118,14 @@ Source: [immutable-view.ts](../src/immutable-view.ts), [immutable-view-collectio
 
 ## Layer 1.5 — `immutableMapView` / `immutableSetView`
 
-Source: [immutable-collection-views.ts](../src/immutable-collection-views.ts)
+Source: [immutable-collection-views.ts](../../src/immutable-collection-views.ts)
 
 | ID | Severity | Vector | File:Line | PoC |
 |---|---|---|---|---|
-| C1 | LOW | Values cloned at construction but frozen only on first read — there is a window where the wrapper holds an unfrozen clone | [immutable-collection-views.ts:37-43](../src/immutable-collection-views.ts) | ✓ |
-| C2 | LOW (documented) | `has()` uses reference identity; originals passed by caller produce false-negatives | [immutable-collection-views.ts:117](../src/immutable-collection-views.ts) | ✓ |
-| C3 | LOW | Generator iteration freezes lazily — aborted iteration leaves later items unfrozen | [immutable-collection-views.ts:83-88](../src/immutable-collection-views.ts) | ✓ |
-| C4 | LOW | `structuredClone` throws on non-cloneable values at construction — DoS if caller receives attacker-supplied Map/Set | [immutable-collection-views.ts:28](../src/immutable-collection-views.ts) | ✓ |
+| C1 | LOW | Values cloned at construction but frozen only on first read — there is a window where the wrapper holds an unfrozen clone | [immutable-collection-views.ts:37-43](../../src/immutable-collection-views.ts) | ✓ |
+| C2 | LOW (documented) | `has()` uses reference identity; originals passed by caller produce false-negatives | [immutable-collection-views.ts:117](../../src/immutable-collection-views.ts) | ✓ |
+| C3 | LOW | Generator iteration freezes lazily — aborted iteration leaves later items unfrozen | [immutable-collection-views.ts:83-88](../../src/immutable-collection-views.ts) | ✓ |
+| C4 | LOW | `structuredClone` throws on non-cloneable values at construction — DoS if caller receives attacker-supplied Map/Set | [immutable-collection-views.ts:28](../../src/immutable-collection-views.ts) | ✓ |
 | C5 | MEDIUM | `ImmutableMap.prototype` and `ImmutableSet.prototype` are not frozen — attacker can overwrite `get`, `values`, etc. for every wrapper in the process | — | ✓ |
 
 **Suggested fix for C5:** `Object.freeze(ImmutableMap.prototype); Object.freeze(ImmutableSet.prototype)` at module load.
@@ -126,12 +134,12 @@ Source: [immutable-collection-views.ts](../src/immutable-collection-views.ts)
 
 ## Layer 1.5 — `snapshot` / `lock`
 
-Source: [snapshot.ts](../src/snapshot.ts)
+Source: [snapshot.ts](../../src/snapshot.ts)
 
 | ID | Severity | Vector | File:Line | PoC |
 |---|---|---|---|---|
-| S1 | HIGH | Prototype pollution survives `snapshot()` — `Object.prototype.x` is visible through the clone | [snapshot.ts:29-34](../src/snapshot.ts) | ✓ |
-| S2 | MEDIUM | Same raw `structuredClone` as F6/P2 | [freeze-deep-internal.ts:18](../src/freeze-deep-internal.ts) | ✓ |
+| S1 | HIGH | Prototype pollution survives `snapshot()` — `Object.prototype.x` is visible through the clone | [snapshot.ts:29-34](../../src/snapshot.ts) | ✓ |
+| S2 | MEDIUM | Same raw `structuredClone` as F6/P2 | [freeze-deep-internal.ts:18](../../src/freeze-deep-internal.ts) | ✓ |
 | S3 | LOW (documented) | Non-cloneable values (functions, Symbols, DOM) throw — DoS on hostile payload | — | ✓ |
 | S4 | MEDIUM | `snapshot(new Date())` is still `Date` — poisoning `Date.prototype.getTime` affects the frozen snapshot | — | ✓ |
 
@@ -141,27 +149,27 @@ Source: [snapshot.ts](../src/snapshot.ts)
 
 ## Layer 2 — `vault`
 
-Source: [vault.ts](../src/vault.ts)
+Source: [vault.ts](../../src/vault.ts)
 
 | ID | Severity | Vector | File:Line | PoC |
 |---|---|---|---|---|
-| U1 | LOW | Non-cloneable input throws → DoS at construction | [vault.ts:17](../src/vault.ts), [freeze-deep-internal.ts:19](../src/freeze-deep-internal.ts) | ✓ |
-| U2 | LOW | Repeated `.get()` performs a full deep clone each time — CPU/memory amplification attack | [vault.ts:42](../src/vault.ts) | ✓ |
+| U1 | LOW | Non-cloneable input throws → DoS at construction | [vault.ts:17](../../src/vault.ts), [freeze-deep-internal.ts:19](../../src/freeze-deep-internal.ts) | ✓ |
+| U2 | LOW | Repeated `.get()` performs a full deep clone each time — CPU/memory amplification attack | [vault.ts:42](../../src/vault.ts) | ✓ |
 | U3 | MEDIUM | Raw `structuredClone` (same vector as P2) | — | see P2 |
-| U4 | — regression | `.get.call(otherThis, …)` cannot leak — arrow closure pins state (no fix needed, keep test) | [vault.ts:42](../src/vault.ts) | ✓ |
+| U4 | — regression | `.get.call(otherThis, …)` cannot leak — arrow closure pins state (no fix needed, keep test) | [vault.ts:42](../../src/vault.ts) | ✓ |
 
 ---
 
 ## Layer 2.5 — `secureSnapshot`
 
-Source: [secure-snapshot.ts](../src/secure-snapshot.ts)
+Source: [secure-snapshot.ts](../../src/secure-snapshot.ts)
 
 | ID | Severity | Vector | File:Line | PoC |
 |---|---|---|---|---|
-| X1 | HIGH | Accessor-only properties **silently dropped** — input `{ get important() {…} }` returns `{}`; caller gets no warning, cannot distinguish from legitimate empty object | [secure-snapshot.ts:68-69](../src/secure-snapshot.ts) | ✓ |
-| X2 | LOW (documented) | Any nested non-plain object (Date, Array, Map, class instance) aborts — DoS on hostile payload | [secure-snapshot.ts:15-24, 59-61](../src/secure-snapshot.ts) | ✓ |
-| X3 | — regression | Descriptor `.get()` returns already-secured inner object — assignment still throws | [secure-snapshot.ts:73-77](../src/secure-snapshot.ts) | ✓ |
-| X4 | — regression | Symbol keys preserved with non-configurable getters | [secure-snapshot.ts:66](../src/secure-snapshot.ts) | ✓ |
+| X1 | HIGH | Accessor-only properties **silently dropped** — input `{ get important() {…} }` returns `{}`; caller gets no warning, cannot distinguish from legitimate empty object | [secure-snapshot.ts:68-69](../../src/secure-snapshot.ts) | ✓ |
+| X2 | LOW (documented) | Any nested non-plain object (Date, Array, Map, class instance) aborts — DoS on hostile payload | [secure-snapshot.ts:15-24, 59-61](../../src/secure-snapshot.ts) | ✓ |
+| X3 | — regression | Descriptor `.get()` returns already-secured inner object — assignment still throws | [secure-snapshot.ts:73-77](../../src/secure-snapshot.ts) | ✓ |
+| X4 | — regression | Symbol keys preserved with non-configurable getters | [secure-snapshot.ts:66](../../src/secure-snapshot.ts) | ✓ |
 
 **Suggested fix for X1:** either `throw new TypeError('secureSnapshot: accessor property "' + key + '" not supported')` or invoke the getter once and secure the returned value.
 
@@ -169,19 +177,19 @@ Source: [secure-snapshot.ts](../src/secure-snapshot.ts)
 
 ## Layer 3 — `tamperEvident`
 
-Source: [tamper-evident.ts](../src/tamper-evident.ts)
+Source: [tamper-evident.ts](../../src/tamper-evident.ts)
 
 | ID | Severity | Vector | File:Line | PoC |
 |---|---|---|---|---|
-| T1 | MEDIUM | djb2 is 32-bit non-cryptographic — birthday attack ~2^16 payloads produces collision | [tamper-evident.ts:22-28](../src/tamper-evident.ts) | ✓ |
-| T2 | HIGH | `stableStringify` iterates only own enumerable keys; `Map` entries are in internal slot → every `Map` with no own props has the SAME fingerprint | [tamper-evident.ts:40-78](../src/tamper-evident.ts) | ✓ |
+| T1 | MEDIUM | djb2 is 32-bit non-cryptographic — birthday attack ~2^16 payloads produces collision | [tamper-evident.ts:22-28](../../src/tamper-evident.ts) | ✓ |
+| T2 | HIGH | `stableStringify` iterates only own enumerable keys; `Map` entries are in internal slot → every `Map` with no own props has the SAME fingerprint | [tamper-evident.ts:40-78](../../src/tamper-evident.ts) | ✓ |
 | T3 | HIGH | Same for `Set` | — | ✓ |
 | T4 | HIGH | Same for `Date` — different timestamps produce identical fingerprints | — | ✓ |
-| T5 | MEDIUM | Symbols with identical descriptions collide via `.toString()` | [tamper-evident.ts:51,57](../src/tamper-evident.ts) | ✓ |
-| T6 | MEDIUM | Raw `JSON.stringify` used — cached `_jsonStringify` exists but unused | [tamper-evident.ts:37,54,57](../src/tamper-evident.ts) | see P3 |
-| T7 | HIGH | `stableStringify` invokes getters; side-effectful getters (e.g., returning `Date.now()`) make every `verify()` call mismatch → integrity alarm fires without tampering | [tamper-evident.ts:54,57](../src/tamper-evident.ts) | ✓ |
-| T8 | LOW | Sparse array holes and explicit `undefined` produce identical hash | [tamper-evident.ts:75](../src/tamper-evident.ts) | ✓ |
-| T9 | LOW | `"[Circular]"` placeholder flattens structurally-different cycles into equal strings | [tamper-evident.ts:71](../src/tamper-evident.ts) | ✓ |
+| T5 | MEDIUM | Symbols with identical descriptions collide via `.toString()` | [tamper-evident.ts:51,57](../../src/tamper-evident.ts) | ✓ |
+| T6 | MEDIUM | Raw `JSON.stringify` used — cached `_jsonStringify` exists but unused | [tamper-evident.ts:37,54,57](../../src/tamper-evident.ts) | see P3 |
+| T7 | HIGH | `stableStringify` invokes getters; side-effectful getters (e.g., returning `Date.now()`) make every `verify()` call mismatch → integrity alarm fires without tampering | [tamper-evident.ts:54,57](../../src/tamper-evident.ts) | ✓ |
+| T8 | LOW | Sparse array holes and explicit `undefined` produce identical hash | [tamper-evident.ts:75](../../src/tamper-evident.ts) | ✓ |
+| T9 | LOW | `"[Circular]"` placeholder flattens structurally-different cycles into equal strings | [tamper-evident.ts:71](../../src/tamper-evident.ts) | ✓ |
 
 **Suggested fixes**
 
@@ -193,12 +201,12 @@ Source: [tamper-evident.ts](../src/tamper-evident.ts)
 
 ## Layer 4 — Verification & `checkRuntimeIntegrity`
 
-Source: [verification.ts](../src/verification.ts), [check-runtime-integrity.ts](../src/check-runtime-integrity.ts)
+Source: [verification.ts](../../src/verification.ts), [check-runtime-integrity.ts](../../src/check-runtime-integrity.ts)
 
 | ID | Severity | Vector | File:Line | PoC |
 |---|---|---|---|---|
-| I1 | HIGH | `isDeepFrozen` false positive when accessor returns mutable object | [verification.ts:20](../src/verification.ts) | ✓ |
-| I2 | MEDIUM | Missing `Reflect.get/set/has/getOwnPropertyDescriptor/getPrototypeOf/isExtensible` — all used by `immutableView` handler | [check-runtime-integrity.ts:24-44](../src/check-runtime-integrity.ts) | ✓ |
+| I1 | HIGH | `isDeepFrozen` false positive when accessor returns mutable object | [verification.ts:20](../../src/verification.ts) | ✓ |
+| I2 | MEDIUM | Missing `Reflect.get/set/has/getOwnPropertyDescriptor/getPrototypeOf/isExtensible` — all used by `immutableView` handler | [check-runtime-integrity.ts:24-44](../../src/check-runtime-integrity.ts) | ✓ |
 | I3 | MEDIUM | Missing `Map.prototype.*`, `Set.prototype.*`, `WeakMap/WeakSet.prototype.*` | — | ✓ |
 | I4 | MEDIUM | Missing `Array.prototype.push/pop/splice/sort/reverse` | — | ✓ |
 | I5 | MEDIUM | Missing detection of `Object.prototype` pollution (injected accessors) | — | ✓ |
@@ -213,14 +221,14 @@ Source: [verification.ts](../src/verification.ts), [check-runtime-integrity.ts](
 
 ## Cross-cutting — Preload / Supply-Chain
 
-Source: [cached-builtins.ts](../src/cached-builtins.ts)
+Source: [cached-builtins.ts](../../src/cached-builtins.ts)
 
 | ID | Severity | Vector | File:Line | PoC |
 |---|---|---|---|---|
-| P1 | MEDIUM | Self-test only exercises `Object.freeze({})` — other cached builtins untested at load | [cached-builtins.ts:25-28](../src/cached-builtins.ts) | ✓ |
-| P2 | MEDIUM | `_structuredClone` captured but never used (`freeze-deep-internal.ts:18` uses raw global) | [freeze-deep-internal.ts:18](../src/freeze-deep-internal.ts) | ✓ |
-| P3 | MEDIUM | `_jsonStringify` captured but never used (`tamper-evident.ts` uses raw `JSON.stringify`) | [tamper-evident.ts:37,54,57](../src/tamper-evident.ts) | ✓ |
-| P4 | MEDIUM | `Reflect.*` not cached (except `_ownKeys`); immutable-view handler depends on live Reflect | [cached-builtins.ts:9-21](../src/cached-builtins.ts) | ✓ |
+| P1 | MEDIUM | Self-test only exercises `Object.freeze({})` — other cached builtins untested at load | [cached-builtins.ts:25-28](../../src/cached-builtins.ts) | ✓ |
+| P2 | MEDIUM | `_structuredClone` captured but never used (`freeze-deep-internal.ts:18` uses raw global) | [freeze-deep-internal.ts:18](../../src/freeze-deep-internal.ts) | ✓ |
+| P3 | MEDIUM | `_jsonStringify` captured but never used (`tamper-evident.ts` uses raw `JSON.stringify`) | [tamper-evident.ts:37,54,57](../../src/tamper-evident.ts) | ✓ |
+| P4 | MEDIUM | `Reflect.*` not cached (except `_ownKeys`); immutable-view handler depends on live Reflect | [cached-builtins.ts:9-21](../../src/cached-builtins.ts) | ✓ |
 | P5 | — regression | ES module namespace spec-frozen — cannot replace exported functions | — | ✓ |
 
 **Suggested fixes**

@@ -1,3 +1,11 @@
+---
+title: "System Architecture"
+description: "Multi-level immutability architecture: freeze, proxy views, snapshots, vault, and hardened snapshots."
+lastReviewed: 2026-04-17
+sourceLocale: en
+translationStatus: synced
+---
+
 # Constancy - System Architecture
 
 ## Architecture Overview
@@ -332,7 +340,7 @@ No circular dependencies.
 | `vault.ts` | Closure isolation + copy-on-read |
 | `verification.ts` | isDeepFrozen() + assertDeepFrozen() |
 | `check-runtime-integrity.ts` | Detect post-import tampering (12 builtins) |
-| `types.ts` | DeepReadonly<T>, Vault<T>, TamperProofVault<T>, etc. |
+| `types.ts` | `DeepReadonly<T>`, `Vault<T>`, `TamperProofVault<T>`, etc. |
 | `utils.ts` | isFreezable() |
 
 ---
@@ -424,7 +432,7 @@ const { constancy, deepFreeze } = require('constancy');
 
 ## Type System Architecture
 
-### DeepReadonly<T> Resolution
+### `DeepReadonly<T>` Resolution
 
 ```typescript
 type DeepReadonly<T> =

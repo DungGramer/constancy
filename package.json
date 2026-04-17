@@ -21,11 +21,14 @@
   "scripts": {
     "ci": "npm ci",
     "build": "tsup",
-    "typecheck": "tsc --noEmit",
+    "docs:build": "vitepress build docs",
+    "docs:dev": "vitepress dev docs",
+    "docs:preview": "vitepress preview docs",
+    "fuzz": "npx jazzer",
     "test": "vitest run",
-    "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "fuzz": "npx jazzer"
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
   },
   "engines": {
     "node": ">=20"
@@ -65,10 +68,22 @@
   },
   "license": "MIT",
   "funding": [
-    { "type": "github", "url": "https://github.com/sponsors/dunggramer" },
-    { "type": "patreon", "url": "https://patreon.com/dunggramer" },
-    { "type": "paypal", "url": "https://paypal.me/dunggramer" },
-    { "type": "thanks_dev", "url": "https://thanks.dev/u/gh/DungGramer" }
+    {
+      "type": "github",
+      "url": "https://github.com/sponsors/dunggramer"
+    },
+    {
+      "type": "patreon",
+      "url": "https://patreon.com/dunggramer"
+    },
+    {
+      "type": "paypal",
+      "url": "https://paypal.me/dunggramer"
+    },
+    {
+      "type": "thanks_dev",
+      "url": "https://thanks.dev/u/gh/DungGramer"
+    }
   ],
   "publishConfig": {
     "access": "public",
@@ -80,6 +95,7 @@
     "@vitest/coverage-v8": "^4.1.4",
     "tsup": "^8.5.1",
     "typescript": "^6.0.3",
+    "vitepress": "1.6.4",
     "vitest": "^4.1.4"
   }
 }

@@ -5,3 +5,7 @@ repomix-output.md
 !/docs
 plans/
 repomix-output.xml
+
+# VitePress
+docs/.vitepress/cache/
+docs/.vitepress/dist/

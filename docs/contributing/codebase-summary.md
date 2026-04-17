@@ -1,3 +1,11 @@
+---
+title: "Codebase Summary"
+description: "Overview of the constancy codebase: source files, test suite, tooling, and CI."
+lastReviewed: 2026-04-17
+sourceLocale: en
+translationStatus: synced
+---
+
 # Constancy - Codebase Summary
 
 ## Project Overview

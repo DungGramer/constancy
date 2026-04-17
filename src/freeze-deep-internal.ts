@@ -2,20 +2,26 @@
  * Shared internal helpers: recursive freeze + deep clone.
  * Used by deepFreeze(), snapshot(), vault(), and tamperEvident().
  */
-import { _freeze, _ownKeys, _getOwnPropertyDescriptor, _isView } from './cached-builtins';
+import {
+  _freeze,
+  _ownKeys,
+  _getOwnPropertyDescriptor,
+  _isView,
+  _structuredClone,
+} from './cached-builtins';
 import { isFreezable } from './utils';
 
-/** structuredClone is available in Node >= 17 and modern browsers but missing from ES2022 lib. */
-declare function structuredClone<T>(value: T): T;
-
 /**
- * Deep clone via structuredClone. Requires Node >= 18 or modern browser.
+ * Deep clone via cached structuredClone. Requires Node >= 18 or modern browser.
  * Preserves: Date, Map, Set, RegExp, ArrayBuffer, circular refs, TypedArrays.
  * Throws TypeError for non-cloneable values (functions, Symbols, DOM nodes).
  */
 export function deepClone<T>(value: T): T {
+  if (typeof _structuredClone !== 'function') {
+    throw new TypeError('deepClone: structuredClone is not available in this runtime');
+  }
   try {
-    return structuredClone(value);
+    return _structuredClone(value);
   } catch (err) {
     if ((err as Error)?.name === 'DataCloneError') {
       throw new TypeError(

@@ -22,7 +22,26 @@ export const _isArray = Array.isArray;
 
 // Self-test: verify cached builtins work correctly at import time.
 // If builtins were tampered before import, this throws immediately.
-const _selfTest = _freeze({});
+// Covers every captured binding actually used by the library (audit P1).
+const _selfTest = _freeze({ a: 1 });
 if (!_isFrozen(_selfTest)) {
   throw new Error('constancy: Object.freeze or Object.isFrozen is compromised — cannot guarantee immutability');
+}
+if (_jsonStringify({ a: 1 }) !== '{"a":1}') {
+  throw new Error('constancy: JSON.stringify is compromised — cannot guarantee fingerprint integrity');
+}
+if (_ownKeys(_selfTest).join(',') !== 'a') {
+  throw new Error('constancy: Reflect.ownKeys is compromised — cannot guarantee traversal integrity');
+}
+if (_getOwnPropertyDescriptor(_selfTest, 'a')?.value !== 1) {
+  throw new Error('constancy: Object.getOwnPropertyDescriptor is compromised');
+}
+if (_isArray([]) !== true) {
+  throw new Error('constancy: Array.isArray is compromised');
+}
+if (typeof _structuredClone === 'function') {
+  const _probe = _structuredClone({ a: 1 });
+  if (_probe.a !== 1) {
+    throw new Error('constancy: structuredClone is compromised');
+  }
 }

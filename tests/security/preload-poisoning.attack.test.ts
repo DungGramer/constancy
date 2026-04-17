@@ -9,33 +9,34 @@ describe('Cross-cutting — preload poisoning', () => {
     vi.resetModules();
   });
 
-  it('BYPASS P2: raw structuredClone used by deepClone — poison pre-import subverts snapshot()', async () => {
+  it('P2 fix: structuredClone preload poison detected at import (self-test throws)', async () => {
     const originalSC = globalThis.structuredClone;
-    // Poison BEFORE import. Self-test in cached-builtins only exercises Object.freeze({})
-    // so structuredClone poisoning is invisible at load time.
     (globalThis as any).structuredClone = (v: unknown) => ({ poisoned: true, original: v });
     try {
-      const mod = await import('../../src/index');
-      const out = mod.snapshot({ safe: 1 }) as any;
-      // BYPASS: cached _structuredClone exists but deepClone() calls raw global directly
-      expect(out.poisoned).toBe(true);
+      await expect(import('../../src/index')).rejects.toThrow(/structuredClone is compromised/);
     } finally {
       (globalThis as any).structuredClone = originalSC;
     }
   });
 
-  it('BYPASS P3: raw JSON.stringify used by tamperEvident — poison changes fingerprint', async () => {
+  it('P3 fix: JSON.stringify preload poison detected at import (self-test throws)', async () => {
     const originalJSON = JSON.stringify;
     (JSON as any).stringify = () => '"FORGED"';
     try {
-      const mod = await import('../../src/index');
-      const v = mod.tamperEvident({ x: 1 });
-      // Forged fingerprint proves JSON.stringify wasn't pinned to _jsonStringify
-      expect(typeof v.fingerprint).toBe('string');
-      // Integrity check after restoring JSON.stringify — legit state now diverges from poisoned fingerprint
+      await expect(import('../../src/index')).rejects.toThrow(/JSON\.stringify is compromised/);
+    } finally {
       (JSON as any).stringify = originalJSON;
-      // verify() recomputes using restored JSON.stringify → mismatch
-      expect(v.verify()).toBe(false);
+    }
+  });
+
+  it('P3 runtime: tamperEvident uses cached JSON.stringify — post-import poison ignored', async () => {
+    const mod = await import('../../src/index');
+    const v = mod.tamperEvident({ x: 1 });
+    const originalJSON = JSON.stringify;
+    (JSON as any).stringify = () => '"FORGED"';
+    try {
+      // verify() recomputes via cached _jsonStringify, not poisoned JSON.stringify
+      expect(v.verify()).toBe(true);
     } finally {
       (JSON as any).stringify = originalJSON;
     }
@@ -55,10 +56,14 @@ describe('Cross-cutting — preload poisoning', () => {
     // (Non-covered counterparts are tested in runtime-integrity-bypass.attack.test.ts)
   });
 
-  it('P1: self-test only exercises Object.freeze({}) — narrow surface', async () => {
-    // Documentation-style test — confirms that a pre-import poison of e.g. structuredClone
-    // does NOT cause cached-builtins.ts:25-28 to throw. The other test in this file already
-    // demonstrates the exploit via P2.
-    expect(true).toBe(true);
+  it('P1 fix: self-test now exercises all cached builtins (Object.freeze, JSON.stringify, Reflect.ownKeys, getOwnPropertyDescriptor, Array.isArray, structuredClone)', async () => {
+    // Regression: preload poison of any cached builtin trips the self-test.
+    const original = Object.getOwnPropertyDescriptor;
+    (Object as any).getOwnPropertyDescriptor = () => undefined;
+    try {
+      await expect(import('../../src/index')).rejects.toThrow(/Object\.getOwnPropertyDescriptor is compromised/);
+    } finally {
+      (Object as any).getOwnPropertyDescriptor = original;
+    }
   });
 });

@@ -1,5 +1,5 @@
 import type { DeepReadonly } from './types';
-import { _freeze, _ownKeys } from './cached-builtins';
+import { _freeze, _ownKeys, _jsonStringify } from './cached-builtins';
 import { freezeDeep, deepClone } from './freeze-deep-internal';
 import { isFreezable } from './utils';
 
@@ -34,7 +34,7 @@ function stringifyPrimitive(val: unknown): string {
     if (!Number.isFinite(val)) return val > 0 ? '"Infinity"' : '"-Infinity"';
   }
   if (val === undefined) return 'undefined';
-  return JSON.stringify(val);
+  return _jsonStringify(val);
 }
 
 /** Serialize an object's own keys into structurally separated string|symbol sections. */
@@ -51,10 +51,10 @@ function stringifyObjectKeys(obj: Record<string | symbol, unknown>, seen: WeakSe
   symKeys.sort((a, b) => a.toString().localeCompare(b.toString()));
 
   const strPairs = strKeys.map(k =>
-    JSON.stringify(k) + ':' + stableStringify(obj[k], seen)
+    _jsonStringify(k) + ':' + stableStringify(obj[k], seen)
   );
   const symPairs = symKeys.map(k =>
-    JSON.stringify(k.toString()) + ':' + stableStringify(obj[k], seen)
+    _jsonStringify(k.toString()) + ':' + stableStringify(obj[k], seen)
   );
 
   // '|' separates the two sections — structural, not a prefix, so no collision

@@ -31,8 +31,11 @@ export const _reflectIsExtensible = Reflect.isExtensible;
 // Object.prototype own-keys fingerprint — captured at module load.
 // Used by checkRuntimeIntegrity to detect prototype pollution injections
 // such as `Object.prototype._leak = 'x'` (audit I5).
+// Deterministic UTF-16 code-unit sort (NOT localeCompare — must be locale-independent
+// so fingerprints match across machines/locales).
+const _fingerprintSort = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 export const _objectPrototypeKeysFingerprint = _ownKeys(Object.prototype).length + ':' +
-  _ownKeys(Object.prototype).map(k => typeof k === 'symbol' ? k.description ?? 'sym' : String(k)).sort().join(',');
+  _ownKeys(Object.prototype).map(k => typeof k === 'symbol' ? k.description ?? 'sym' : String(k)).sort(_fingerprintSort).join(',');
 
 // Self-test: verify cached builtins work correctly at import time.
 // If builtins were tampered before import, this throws immediately.

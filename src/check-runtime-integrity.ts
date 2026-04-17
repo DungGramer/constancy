@@ -54,9 +54,10 @@ export function checkRuntimeIntegrity(): IntegrityResult {
     compromised.push('Reflect.isExtensible');
 
   // Object.prototype pollution detection (audit I5)
+  // Sort must be locale-independent to match module-load fingerprint across machines.
   const nowKeys = _ownKeys(Object.prototype);
   const nowFingerprint = nowKeys.length + ':' +
-    nowKeys.map(k => typeof k === 'symbol' ? k.description ?? 'sym' : String(k)).sort().join(',');
+    nowKeys.map(k => typeof k === 'symbol' ? k.description ?? 'sym' : String(k)).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)).join(',');
   if (nowFingerprint !== _objectPrototypeKeysFingerprint) {
     compromised.push('Object.prototype');
   }

@@ -2,7 +2,10 @@ import {
   _freeze, _isFrozen,
   _getOwnPropertyDescriptor, _defineProperty,
   _create, _ownKeys, _isView, _Proxy,
-  _structuredClone, _jsonStringify, _isArray
+  _structuredClone, _jsonStringify, _isArray,
+  _reflectGet, _reflectHas, _reflectGetOwnPropertyDescriptor,
+  _reflectGetPrototypeOf, _reflectIsExtensible,
+  _objectPrototypeKeysFingerprint,
 } from './cached-builtins';
 
 declare function structuredClone<T>(value: T): T;
@@ -39,6 +42,24 @@ export function checkRuntimeIntegrity(): IntegrityResult {
     compromised.push('structuredClone');
   if (JSON.stringify !== _jsonStringify) compromised.push('JSON.stringify');
   if (Array.isArray !== _isArray) compromised.push('Array.isArray');
+
+  // Reflect.* used by immutable-view handler (audit I2)
+  if (Reflect.get !== _reflectGet) compromised.push('Reflect.get');
+  if (Reflect.has !== _reflectHas) compromised.push('Reflect.has');
+  if (Reflect.getOwnPropertyDescriptor !== _reflectGetOwnPropertyDescriptor)
+    compromised.push('Reflect.getOwnPropertyDescriptor');
+  if (Reflect.getPrototypeOf !== _reflectGetPrototypeOf)
+    compromised.push('Reflect.getPrototypeOf');
+  if (Reflect.isExtensible !== _reflectIsExtensible)
+    compromised.push('Reflect.isExtensible');
+
+  // Object.prototype pollution detection (audit I5)
+  const nowKeys = _ownKeys(Object.prototype);
+  const nowFingerprint = nowKeys.length + ':' +
+    nowKeys.map(k => typeof k === 'symbol' ? k.description ?? 'sym' : String(k)).sort().join(',');
+  if (nowFingerprint !== _objectPrototypeKeysFingerprint) {
+    compromised.push('Object.prototype');
+  }
 
   return _freeze({ intact: compromised.length === 0, compromised: _freeze(compromised) });
 }

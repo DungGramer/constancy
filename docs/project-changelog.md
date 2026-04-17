@@ -2,7 +2,37 @@
 
 All notable changes to the Constancy project are documented here.
 
-## [3.0.0] — Security Hardening, SLSA 3, Fuzz Testing — 2026-04-17
+## [3.0.1] — Security Audit Fixes (12 Vectors) — 2026-04-17
+
+### Summary
+v3.0.1 closes 12 security vulnerabilities from the v3.0.0 external audit. All fixes maintain backward compatibility via opt-in flags or behavior corrections for unsafe patterns only. Public API unchanged.
+
+### Security Fixes
+12 audit vectors closed (issues #16–#26):
+- **Freeze:** F1 (prototype-chain opt-in), F4/I1 (accessor false-positive)
+- **View:** V1 (apply/construct traps), V3 (deny-by-default for slotted types), V5 (blockToJSON opt-in)
+- **Snapshot:** S1 (null-proto on plain objects), X1 (accessor throws)
+- **Tamper-Evident:** T1/T7 (64-bit fingerprint + accessor marker), T2/T3/T4 (Map/Set/Date slot scanning)
+- **Cross-Cutting:** P2/P3 (cache builtin usage), I2/I5 (integrity check expansion)
+
+### Test Suite
++50 regression tests in `tests/security/` (7 test files). Total: 228+ passing.
+
+### New API Options (Backward Compatible)
+1. `deepFreeze<T>(val: T, { freezePrototypeChain?: boolean })` — default false. Opt-in prototype chain freeze.
+2. `immutableView<T>(val: T, { blockToJSON?: boolean })` — default false. Opt-in toJSON() blocking.
+
+### Behavior Changes (Safe for Correct Code)
+- `snapshot()` / `lock()`: plain objects get `[[Prototype]]` set to null (built-ins retain prototypes)
+- `secureSnapshot()`: throws TypeError on accessor descriptors (was: silent drop)
+- `isDeepFrozen()`: returns false on accessor descriptors (was: false-positive true)
+- `immutableView()`: deny-by-default for function props on Map/Set/Array/Date/WeakMap/WeakSet
+- `tamperEvident.stableStringify()`: 64-bit hash; reaches Map/Set/Date/RegExp internal slots; marks accessors instead of invoking
+- `checkRuntimeIntegrity()`: now covers Reflect.get/has/getOwnPropertyDescriptor/getPrototypeOf/isExtensible + Object.prototype fingerprint
+
+---
+
+## [3.0.0] — Security Hardening, SLSA 3, Fuzz Testing — 2026-04-16
 
 ### Summary
 v3.0.0 enhances security posture with SLSA Level 3 provenance, Jazzer.js fuzz testing, Codecov integration, and cognitive complexity refactoring. 228+ tests, 98%+ coverage. Node >= 20 (dropped Node 18).

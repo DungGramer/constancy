@@ -4,7 +4,7 @@
 
 **Constancy** is a lightweight, zero-dependency TypeScript utility that makes objects and arrays immutable through five API categories: freeze (shallow/deep), immutable views (proxy-based), snapshots (clone+freeze), vaults (closure isolation), and verification utilities.
 
-**Current Version:** 3.0.0
+**Current Version:** 3.0.1
 **License:** MIT
 **Repository:** https://github.com/DungGramer/constancy
 **npm:** https://www.npmjs.com/package/constancy
@@ -39,21 +39,26 @@ In JavaScript, objects and arrays are mutable by default. Developers need immuta
 
 ### Freeze (Level 0)
 1. **`freezeShallow(val)`** — Shallow freeze via `Object.freeze()`, returns `Readonly<T>`
-2. **`deepFreeze(val)`** — Recursive freeze with circular reference safety, returns `DeepReadonly<T>`
-3. **Cached Builtins** — `Object.freeze`, `Reflect.ownKeys` cached at module load to defend against post-import tamper
+2. **`deepFreeze(val, options?)`** — Recursive freeze with circular reference safety, returns `DeepReadonly<T>`
+   - Option: `{ freezePrototypeChain?: boolean }` (default false) — Freeze prototype chain to block post-freeze poisoning
+3. **Cached Builtins** — `Object.freeze`, `Reflect.ownKeys`, and 10+ others cached at module load to defend against post-import tamper
 
 ### View (Level 1) - Proxy, No Clone
-4. **`immutableView(obj)`** — Proxy-based immutability (VIEW); always throws on mutation through this reference
+4. **`immutableView(obj, options?)`** — Proxy-based immutability (VIEW); always throws on mutation through this reference
+   - Option: `{ blockToJSON?: boolean }` (default false) — Prevent `JSON.stringify(view)` from invoking target's `toJSON()`
+   - Includes `apply` and `construct` traps to reject binding on slotted types
 5. **`isImmutableView(val)`** — Detect immutable view proxy
 6. **`assertImmutableView(val)`** — Assert value is an immutable view proxy
-7. **`immutableMapView()`, `immutableSetView()`** — Read-only Map/Set wrappers
-8. **Mutator Blocking** — Blocks all mutation methods on Map, Set, Array, Date, WeakMap, WeakSet
+7. **`immutableMapView()`, `immutableSetView()`** — Read-only Map/Set wrappers with defensive copy
+8. **Mutator Blocking** — Blocks all mutation methods on Map, Set, Array, Date, WeakMap, WeakSet; deny-by-default for custom methods
 
 ### Snapshot (Level 1.5+) - Clone + Freeze
 9. **`snapshot(value)`** — Clone + deep freeze for true data immutability; original reference severed
+   - Plain objects: `[[Prototype]]` set to null; built-in types retain prototypes
 10. **`lock(value)`** — Alias for `snapshot()`
-11. **`secureSnapshot(obj)`** — Snapshot with null prototype + getter-only + non-configurable descriptors
-12. **`tamperEvident(val)`** — Snapshot + djb2 structural hash verification with `verify()` and `assertIntact()`
+11. **`secureSnapshot(obj)`** — Snapshot with null prototype + getter-only + non-configurable descriptors; throws on accessor properties
+12. **`tamperEvident(val)`** — Snapshot + 64-bit structural hash (djb2+sdbm) with `verify()` and `assertIntact()`
+    - Reaches into Map/Set/Date/RegExp internal slots; marks accessors instead of invoking
 13. **`fingerprint` Property** — Original hash for integrity checking
 
 ### Isolation (Level 2) - Closure + Copy-on-Read

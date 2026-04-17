@@ -1,5 +1,5 @@
 import type { DeepReadonly } from './types';
-import { _freeze, _ownKeys } from './cached-builtins';
+import { _freeze, _ownKeys, _jsonStringify, _getOwnPropertyDescriptor } from './cached-builtins';
 import { freezeDeep, deepClone } from './freeze-deep-internal';
 import { isFreezable } from './utils';
 
@@ -18,13 +18,25 @@ export interface TamperEvidentVault<T> {
   readonly fingerprint: string;
 }
 
-/** djb2 hash — returns unsigned 32-bit result as base-36 string. */
+/**
+ * 64-bit fingerprint built from two independent non-cryptographic hashes:
+ * djb2 (shift+add) and sdbm (multiply+xor). Concatenating them widens the
+ * birthday bound from ~2^16 (djb2 alone) to ~2^32 attempts before a collision
+ * is expected (audit T1). Still NOT cryptographically secure — callers who
+ * need tamper-proof integrity against a motivated attacker must use an HMAC
+ * from node:crypto instead.
+ */
 function hashString(str: string): string {
-  let hash = 5381;
+  let h1 = 5381; // djb2 seed
+  let h2 = 0;    // sdbm seed
   for (let i = 0; i < str.length; i++) {
-    hash = Math.trunc((hash << 5) + hash + (str.codePointAt(i) ?? 0));
+    const c = str.codePointAt(i) ?? 0;
+    h1 = Math.trunc((h1 << 5) + h1 + c);
+    h2 = Math.trunc(c + (h2 << 6) + (h2 << 16) - h2);
   }
-  return (hash >>> 0).toString(36);
+  const part1 = (h1 >>> 0).toString(36).padStart(7, '0');
+  const part2 = (h2 >>> 0).toString(36).padStart(7, '0');
+  return part1 + part2;
 }
 
 /** Serialize a non-object primitive to a deterministic string. */
@@ -34,7 +46,7 @@ function stringifyPrimitive(val: unknown): string {
     if (!Number.isFinite(val)) return val > 0 ? '"Infinity"' : '"-Infinity"';
   }
   if (val === undefined) return 'undefined';
-  return JSON.stringify(val);
+  return _jsonStringify(val);
 }
 
 /** Serialize an object's own keys into structurally separated string|symbol sections. */
@@ -50,11 +62,24 @@ function stringifyObjectKeys(obj: Record<string | symbol, unknown>, seen: WeakSe
   strKeys.sort((a, b) => a.localeCompare(b));
   symKeys.sort((a, b) => a.toString().localeCompare(b.toString()));
 
+  // Audit T7: invoking getters during stringify has side effects and makes
+  // verify() non-deterministic (side-effectful/time-based getters produce
+  // different hashes on each call). Replace accessor descriptors with a
+  // stable structural marker so they contribute to the fingerprint without
+  // being invoked.
+  const readKey = (k: string | symbol): string => {
+    const desc = _getOwnPropertyDescriptor(obj, k);
+    if (desc && !('value' in desc)) {
+      return '"[Accessor]"';
+    }
+    return stableStringify(obj[k], seen);
+  };
+
   const strPairs = strKeys.map(k =>
-    JSON.stringify(k) + ':' + stableStringify(obj[k], seen)
+    _jsonStringify(k) + ':' + readKey(k)
   );
   const symPairs = symKeys.map(k =>
-    JSON.stringify(k.toString()) + ':' + stableStringify(obj[k], seen)
+    _jsonStringify(k.toString()) + ':' + readKey(k)
   );
 
   // '|' separates the two sections — structural, not a prefix, so no collision
@@ -63,7 +88,11 @@ function stringifyObjectKeys(obj: Record<string | symbol, unknown>, seen: WeakSe
 
 /** Deterministic serialisation: _ownKeys (string + symbol), sorted.
  *  String and symbol keys are serialized in structurally separate sections
- *  (separated by '|') so no crafted string key can collide with a symbol key. */
+ *  (separated by '|') so no crafted string key can collide with a symbol key.
+ *
+ *  Built-in types with internal slots (Map, Set, Date) are given a dedicated
+ *  tagged representation that reaches into the slot data. Without this, every
+ *  empty Map/Set and every Date would share the same fingerprint (audit T2/T3/T4). */
 function stableStringify(val: unknown, seen: WeakSet<object> = new WeakSet()): string {
   if (val === null || typeof val !== 'object') return stringifyPrimitive(val);
 
@@ -73,6 +102,26 @@ function stableStringify(val: unknown, seen: WeakSet<object> = new WeakSet()): s
 
   if (Array.isArray(val)) {
     return '[' + val.map(v => stableStringify(v, seen)).join(',') + ']';
+  }
+
+  // Tagged serialization for built-in types whose data is in internal slots
+  if (val instanceof Date) {
+    return 'Date(' + val.getTime() + ')';
+  }
+  if (val instanceof Map) {
+    const entries = Array.from((val as Map<unknown, unknown>).entries())
+      .map(([k, v]) => [stableStringify(k, seen), stableStringify(v, seen)] as const);
+    entries.sort((a, b) => a[0].localeCompare(b[0]));
+    return 'Map{' + entries.map(([k, v]) => k + ':' + v).join(',') + '}';
+  }
+  if (val instanceof Set) {
+    const items = Array.from((val as Set<unknown>).values())
+      .map(v => stableStringify(v, seen));
+    items.sort((a, b) => a.localeCompare(b));
+    return 'Set{' + items.join(',') + '}';
+  }
+  if (val instanceof RegExp) {
+    return 'RegExp(' + val.source + '/' + val.flags + ')';
   }
 
   return stringifyObjectKeys(val as Record<string | symbol, unknown>, seen);

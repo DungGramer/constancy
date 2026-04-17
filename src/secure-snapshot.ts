@@ -65,8 +65,15 @@ export function secureSnapshot<T extends Record<string, unknown>>(value: T): Rea
 
   for (const key of _ownKeys(value)) {
     const desc = _getOwnPropertyDescriptor(value, key);
-    // Skip missing or accessor descriptors (get/set) to avoid side effects
-    if (!desc || !('value' in desc)) continue;
+    if (!desc) continue;
+    // Explicit error on accessor properties — silent drop was a data-loss
+    // surface (audit X1). Caller must convert to plain data before securing.
+    if (!('value' in desc)) {
+      throw new TypeError(
+        `secureSnapshot(): accessor property "${String(key)}" is not supported. ` +
+        `Invoke the getter yourself and pass the resolved value as a plain data property.`
+      );
+    }
 
     store.set(key, secureNestedValue(key, desc.value));
 

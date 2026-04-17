@@ -2,20 +2,26 @@
  * Shared internal helpers: recursive freeze + deep clone.
  * Used by deepFreeze(), snapshot(), vault(), and tamperEvident().
  */
-import { _freeze, _ownKeys, _getOwnPropertyDescriptor, _isView } from './cached-builtins';
+import {
+  _freeze,
+  _ownKeys,
+  _getOwnPropertyDescriptor,
+  _isView,
+  _structuredClone,
+} from './cached-builtins';
 import { isFreezable } from './utils';
 
-/** structuredClone is available in Node >= 17 and modern browsers but missing from ES2022 lib. */
-declare function structuredClone<T>(value: T): T;
-
 /**
- * Deep clone via structuredClone. Requires Node >= 18 or modern browser.
+ * Deep clone via cached structuredClone. Requires Node >= 18 or modern browser.
  * Preserves: Date, Map, Set, RegExp, ArrayBuffer, circular refs, TypedArrays.
  * Throws TypeError for non-cloneable values (functions, Symbols, DOM nodes).
  */
 export function deepClone<T>(value: T): T {
+  if (typeof _structuredClone !== 'function') {
+    throw new TypeError('deepClone: structuredClone is not available in this runtime');
+  }
   try {
-    return structuredClone(value);
+    return _structuredClone(value);
   } catch (err) {
     if ((err as Error)?.name === 'DataCloneError') {
       throw new TypeError(
@@ -29,8 +35,17 @@ export function deepClone<T>(value: T): T {
 
 /** Recursively freeze an object graph; guards circular refs via WeakSet.
  *  Skips: TypedArray byte data, accessor (getter/setter) properties,
- *  prototype chain, Map/Set internal slots. See deepFreeze() JSDoc. */
-export function freezeDeep(obj: object, seen: WeakSet<object> = new WeakSet()): void {
+ *  Map/Set internal slots. See deepFreeze() JSDoc.
+ *
+ *  @param freezePrototypeChain — when true, also freezes the prototype of each
+ *    visited object. Blocks post-freeze prototype poisoning (audit F1). Never
+ *    freezes the canonical Object.prototype / Function.prototype / Array.prototype
+ *    which would break the entire runtime. */
+export function freezeDeep(
+  obj: object,
+  seen: WeakSet<object> = new WeakSet(),
+  freezePrototypeChain = false,
+): void {
   if (seen.has(obj)) return;
   seen.add(obj);
 
@@ -42,7 +57,16 @@ export function freezeDeep(obj: object, seen: WeakSet<object> = new WeakSet()): 
   for (const key of _ownKeys(obj)) {
     const desc = _getOwnPropertyDescriptor(obj, key);
     if (desc && 'value' in desc && isFreezable(desc.value)) {
-      freezeDeep(desc.value as object, seen);
+      freezeDeep(desc.value as object, seen, freezePrototypeChain);
+    }
+  }
+
+  if (freezePrototypeChain) {
+    const proto = Object.getPrototypeOf(obj);
+    // Skip canonical root prototypes to avoid breaking the runtime
+    if (proto && proto !== Object.prototype
+      && proto !== Function.prototype && proto !== Array.prototype) {
+      freezeDeep(proto, seen, freezePrototypeChain);
     }
   }
 

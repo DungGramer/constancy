@@ -159,6 +159,12 @@ export class ImmutableSet<T> implements ReadonlySet<T> {
   }
 }
 
+// Freeze class prototypes at module load to block global prototype pollution.
+// Without this, an attacker can replace `ImmutableMap.prototype.get` and hijack
+// every wrapper instance in the process (audit vector C5).
+Object.freeze(ImmutableMap.prototype);
+Object.freeze(ImmutableSet.prototype);
+
 /**
  * Wraps a `Map` in an `ImmutableMap`, returning a `ReadonlyMap` typed reference.
  * @param source - The mutable map to wrap

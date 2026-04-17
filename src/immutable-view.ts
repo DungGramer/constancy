@@ -1,6 +1,14 @@
 import type { DeepReadonly } from './types';
 import { isFreezable } from './utils';
-import { _Proxy } from './cached-builtins';
+import {
+  _Proxy,
+  _ownKeys,
+  _reflectGet,
+  _reflectHas,
+  _reflectGetOwnPropertyDescriptor,
+  _reflectGetPrototypeOf,
+  _reflectIsExtensible,
+} from './cached-builtins';
 import { wrapMapMethod, wrapSetMethod } from './immutable-view-collection-wraps';
 
 const proxyCache = new WeakMap<object, object>();
@@ -43,6 +51,40 @@ function hasInternalSlots(target: object): boolean {
     || target instanceof Date;
 }
 
+/**
+ * Known non-mutating read methods on built-in collection types. Any string-keyed
+ * function property NOT in this allow-list (and NOT on the class itself) is
+ * treated as a potential subclass custom mutator and blocked. Closes audit V3:
+ * `class Evil extends Map { sneakSet(k,v){this.set(k,v)} }` previously bypassed
+ * the deny list because `sneakSet` was not named in MUTATOR_MAP.
+ */
+const MAP_READ_METHODS = new Set([
+  'get', 'has', 'keys', 'values', 'entries', 'forEach',
+]);
+const SET_READ_METHODS = new Set([
+  'has', 'keys', 'values', 'entries', 'forEach',
+]);
+const WEAKMAP_READ_METHODS = new Set(['get', 'has']);
+const WEAKSET_READ_METHODS = new Set(['has']);
+const DATE_READ_METHODS = new Set([
+  'getTime', 'getFullYear', 'getUTCFullYear', 'getMonth', 'getUTCMonth',
+  'getDate', 'getUTCDate', 'getDay', 'getUTCDay',
+  'getHours', 'getUTCHours', 'getMinutes', 'getUTCMinutes',
+  'getSeconds', 'getUTCSeconds', 'getMilliseconds', 'getUTCMilliseconds',
+  'getTimezoneOffset', 'valueOf',
+  'toString', 'toDateString', 'toTimeString', 'toLocaleString',
+  'toLocaleDateString', 'toLocaleTimeString', 'toUTCString', 'toISOString',
+  'toJSON',
+]);
+
+const READ_METHOD_MAP: [Function, Set<string>][] = [
+  [Map, MAP_READ_METHODS],
+  [Set, SET_READ_METHODS],
+  [WeakMap, WEAKMAP_READ_METHODS],
+  [WeakSet, WEAKSET_READ_METHODS],
+  [Date, DATE_READ_METHODS],
+];
+
 /** Check if prop is a blocked mutator method on target. Returns method name or null. */
 function getBlockedMutator(target: object, prop: string | symbol): string | null {
   if (typeof prop !== 'string') return null;
@@ -53,9 +95,28 @@ function getBlockedMutator(target: object, prop: string | symbol): string | null
   return null;
 }
 
+/**
+ * For objects with internal slots (Map/Set/WeakMap/WeakSet/Date), return true
+ * if `prop` is a function that is NOT a known read method. These are treated
+ * as subclass-defined mutators and blocked regardless of their actual behavior
+ * (defensive deny-by-default — audit V3).
+ */
+function isSuspectSlottedMethod(target: object, prop: string | symbol, value: unknown): boolean {
+  if (typeof prop !== 'string' || typeof value !== 'function') return false;
+  for (const [ctor, reads] of READ_METHOD_MAP) {
+    if (target instanceof ctor) {
+      // Allow own-prototype standard reads; block everything else that's a function.
+      if (reads.has(prop)) return false;
+      // Also allow Symbol.toStringTag etc. which are handled earlier (typeof !== 'string').
+      return true;
+    }
+  }
+  return false;
+}
+
 /** Check if a property descriptor is non-writable + non-configurable (Proxy invariant) */
 function isFrozenDescriptor(target: object, prop: string | symbol): boolean {
-  const desc = Reflect.getOwnPropertyDescriptor(target, prop);
+  const desc = _reflectGetOwnPropertyDescriptor(target, prop);
   return !!desc && !desc.configurable && 'value' in desc && !desc.writable;
 }
 
@@ -65,14 +126,26 @@ function createImmutableProxy<T extends object>(obj: T): T {
 
   const proxy = new _Proxy(obj, {
     get(target, prop, receiver) {
+      // Audit V5: when blockToJSON is set, hide the target's toJSON so
+      // JSON.stringify(view) falls back to default Proxy-observable serialization.
+      const opts = targetOptionsCache.get(target);
+      if (opts?.blockToJSON && prop === 'toJSON') return undefined;
+
       const isSlotted = hasInternalSlots(target);
       const value = isSlotted
-        ? Reflect.get(target, prop)
-        : Reflect.get(target, prop, receiver);
+        ? _reflectGet(target, prop)
+        : _reflectGet(target, prop, receiver);
 
       // Block mutation methods on built-in types
       const blocked = getBlockedMutator(target, prop);
       if (blocked) return () => rejectMutation(blocked);
+
+      // Block subclass-defined methods on slotted types (V3 defense):
+      // any function property that is not in the known read-method allow-list
+      // is treated as a potential mutator even if not named in MUTATOR_MAP.
+      if (isSlotted && isSuspectSlottedMethod(target, prop, value)) {
+        return () => rejectMutation(`invoke subclass method "${String(prop)}"`);
+      }
 
       // Wrap value-returning Map/Set methods so returned objects are proxied
       if (target instanceof Map) {
@@ -104,13 +177,13 @@ function createImmutableProxy<T extends object>(obj: T): T {
     setPrototypeOf() { return rejectMutation('set prototype'); },
     preventExtensions() { return rejectMutation('prevent extensions'); },
     getPrototypeOf(target) {
-      const proto = Reflect.getPrototypeOf(target);
+      const proto = _reflectGetPrototypeOf(target);
       return proto && isFreezable(proto) ? createImmutableProxy(proto) : proto;
     },
-    has(target, prop) { return Reflect.has(target, prop); },
-    ownKeys(target) { return Reflect.ownKeys(target); },
+    has(target, prop) { return _reflectHas(target, prop); },
+    ownKeys(target) { return _ownKeys(target); },
     getOwnPropertyDescriptor(target, prop) {
-      const desc = Reflect.getOwnPropertyDescriptor(target, prop);
+      const desc = _reflectGetOwnPropertyDescriptor(target, prop);
       if (desc && 'value' in desc && isFreezable(desc.value)) {
         if (!isFrozenDescriptor(target, prop)) {
           return { ...desc, value: createImmutableProxy(desc.value as object) };
@@ -118,13 +191,56 @@ function createImmutableProxy<T extends object>(obj: T): T {
       }
       return desc;
     },
-    isExtensible(target) { return Reflect.isExtensible(target); },
+    isExtensible(target) { return _reflectIsExtensible(target); },
+
+    // Audit V1/V6: block function application with a mutable / slotted `this`.
+    // An attacker could pass a callsite receiver that the function mutates
+    // (`evil.call(target)` where evil does `this.hacked = true`). By default
+    // we require the receiver to be either primitive, the original target, or
+    // another immutable view — anything else is rejected defensively.
+    apply(target, thisArg, args) {
+      if (typeof target !== 'function') {
+        return rejectMutation('apply non-function target');
+      }
+      const safeReceiver =
+        thisArg === null ||
+        thisArg === undefined ||
+        typeof thisArg !== 'object' ||
+        thisArg === target ||
+        immutableRegistry.has(thisArg as object);
+      if (!safeReceiver) {
+        return rejectMutation('apply function with a mutable receiver');
+      }
+      return (target as (...a: unknown[]) => unknown).apply(thisArg, args);
+    },
+
+    // Audit V1: block `new view(...)` entirely. An immutable view of a
+    // constructor should not manufacture mutable instances.
+    construct() {
+      return rejectMutation('construct from immutable view');
+    },
   });
 
   proxyCache.set(obj, proxy);
   immutableRegistry.add(proxy);
   return proxy;
 }
+
+/** Options for {@link immutableView}. */
+export interface ImmutableViewOptions {
+  /**
+   * When `true`, suppresses the target's `toJSON()` method through the view.
+   * `JSON.stringify(view)` then serializes via default own-enumerable iteration
+   * (through the Proxy's ownKeys/getOwnPropertyDescriptor traps) instead of
+   * calling the target-supplied `toJSON`. Blocks audit vector V5 where an
+   * attacker-supplied `toJSON` could forge serialized output that the Proxy
+   * traps never observed. Default `false` for backwards compatibility.
+   */
+  readonly blockToJSON?: boolean;
+}
+
+/** Target → options cache. Keyed on raw target so the get trap can consult it. */
+const targetOptionsCache = new WeakMap<object, ImmutableViewOptions>();
 
 /**
  * Wrap a value in a deeply immutable Proxy **view**.
@@ -137,16 +253,27 @@ function createImmutableProxy<T extends object>(obj: T): T {
  * Use `snapshot()` for true data immutability (clone + freeze),
  * or `vault()` for complete reference isolation (closure + copy-on-read).
  *
+ * **V5 note (`toJSON` bypass):** By default the target's `toJSON()` method
+ * (if any) is called directly by `JSON.stringify` — the Proxy cannot
+ * intercept that path, so an attacker-supplied `toJSON` could forge the
+ * serialized output. Pass `{ blockToJSON: true }` to suppress `toJSON` and
+ * force default property-based serialization through the Proxy traps.
+ *
  * @param val - Value to wrap
+ * @param options - Optional behavior tweaks
  * @returns A Proxy-based immutable view, typed as DeepReadonly<T>
  *
  * @example
  * const obj = immutableView({ nested: { count: 0 } });
  * obj.nested.count = 1; // throws TypeError
  */
-export function immutableView<T>(val: T): T extends object ? DeepReadonly<T> : T {
+export function immutableView<T>(val: T, options: ImmutableViewOptions = {}): T extends object ? DeepReadonly<T> : T {
   if (!isFreezable(val)) return val as T extends object ? DeepReadonly<T> : T;
-  return createImmutableProxy(val as object) as T extends object ? DeepReadonly<T> : T;
+  if (options.blockToJSON) {
+    targetOptionsCache.set(val as object, options);
+  }
+  const proxy = createImmutableProxy(val as object);
+  return proxy as T extends object ? DeepReadonly<T> : T;
 }
 
 /**

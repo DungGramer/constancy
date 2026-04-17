@@ -5,22 +5,18 @@ import { describe, it, expect } from 'vitest';
 import { immutableView } from '../../src/index';
 
 describe('Layer 1 — immutableView bypasses', () => {
-  it('BYPASS V1: no apply trap — wrapped function mutates caller-supplied receiver', () => {
+  it('V1 fix: apply trap blocks wrapped function from mutating a mutable receiver', () => {
     function evil(this: { hacked: boolean }): void { this.hacked = true; }
     const view = immutableView(evil);
     const target = { hacked: false };
-    // BYPASS: Proxy handler lacks `apply` trap, so view.call() / view.apply() run unimpeded
-    (view as typeof evil).call(target);
-    expect(target.hacked).toBe(true);
+    expect(() => (view as typeof evil).call(target)).toThrow(/apply function with a mutable receiver/);
+    expect(target.hacked).toBe(false);
   });
 
-  it('BYPASS V1b: no construct trap — wrapped ctor produces real instance with real state', () => {
+  it('V1b fix: construct trap blocks `new view(...)` on wrapped constructors', () => {
     class Box { value = 0; }
     const view = immutableView(Box);
-    // BYPASS: `new view()` not intercepted; instance mutable
-    const inst = new (view as typeof Box)();
-    inst.value = 42;
-    expect(inst.value).toBe(42);
+    expect(() => new (view as typeof Box)()).toThrow(/construct from immutable view/);
   });
 
   it('V3 fix: custom subclass method on Map view is now blocked (deny-by-default)', () => {

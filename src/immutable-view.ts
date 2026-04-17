@@ -187,6 +187,33 @@ function createImmutableProxy<T extends object>(obj: T): T {
       return desc;
     },
     isExtensible(target) { return _reflectIsExtensible(target); },
+
+    // Audit V1/V6: block function application with a mutable / slotted `this`.
+    // An attacker could pass a callsite receiver that the function mutates
+    // (`evil.call(target)` where evil does `this.hacked = true`). By default
+    // we require the receiver to be either primitive, the original target, or
+    // another immutable view — anything else is rejected defensively.
+    apply(target, thisArg, args) {
+      if (typeof target !== 'function') {
+        return rejectMutation('apply non-function target');
+      }
+      const safeReceiver =
+        thisArg === null ||
+        thisArg === undefined ||
+        typeof thisArg !== 'object' ||
+        thisArg === target ||
+        immutableRegistry.has(thisArg as object);
+      if (!safeReceiver) {
+        return rejectMutation('apply function with a mutable receiver');
+      }
+      return (target as (...a: unknown[]) => unknown).apply(thisArg, args);
+    },
+
+    // Audit V1: block `new view(...)` entirely. An immutable view of a
+    // constructor should not manufacture mutable instances.
+    construct() {
+      return rejectMutation('construct from immutable view');
+    },
   });
 
   proxyCache.set(obj, proxy);

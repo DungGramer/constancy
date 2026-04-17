@@ -10,17 +10,20 @@ describe('Layer 1.5 — snapshot/lock bypasses', () => {
     delete (Object.prototype as any).pwned;
   });
 
-  it('BYPASS S1: prototype pollution survives snapshot — clone preserves Object.prototype lookup', () => {
+  it('S1 fix: prototype pollution DOES NOT survive snapshot — null prototype applied to plain objects', () => {
     (Object.prototype as any).pwned = 'GLOBAL';
     const snap = snapshot({ safe: 1 }) as Record<string, unknown>;
-    // BYPASS: structuredClone produces plain object whose prototype chain still hits the polluted Object.prototype
-    expect(snap.pwned).toBe('GLOBAL');
+    // Fix: nullifyPlainPrototypes severs Object.prototype from plain-object nodes
+    expect(snap.pwned).toBeUndefined();
+    expect(Object.getPrototypeOf(snap)).toBeNull();
   });
 
-  it('BYPASS S1b: lock() inherits polluted prototype as well (same underlying clone)', () => {
+  it('S1b fix: lock() (alias) also sheds Object.prototype', () => {
     (Object.prototype as any).pwned = 'VIA-LOCK';
-    const locked = lock({ safe: 1 }) as Record<string, unknown>;
-    expect(locked.pwned).toBe('VIA-LOCK');
+    const locked = lock({ safe: 1, nested: { inner: 2 } }) as Record<string, any>;
+    expect(locked.pwned).toBeUndefined();
+    expect(locked.nested.pwned).toBeUndefined();
+    expect(Object.getPrototypeOf(locked.nested)).toBeNull();
   });
 
   it('documented S3: non-cloneable values throw — hostile payload causes DoS', () => {

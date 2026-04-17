@@ -1,0 +1,62 @@
+# constancy
+
+> Zero-dependency immutability toolkit for JavaScript and TypeScript. Five mental models — Freeze, View, Snapshot, Isolation, Verification — for choosing the right immutability tool. SLSA 3 provenance, fuzz-tested, 228+ tests, under 6 KB.
+
+- npm: https://www.npmjs.com/package/constancy
+- GitHub: https://github.com/DungGramer/constancy
+- License: MIT
+- Node.js: ≥ 20
+- Languages: English, Tiếng Việt
+
+## Documentation
+
+- [Getting Started](https://dunggramer.github.io/constancy/guide/getting-started): install + 5-minute tour
+- [Choose the Right Model](https://dunggramer.github.io/constancy/guide/choose-the-right-model): which API for which use case
+- [Mental Models](https://dunggramer.github.io/constancy/guide/mental-models): VIEW vs SNAPSHOT vs VAULT
+- [Limitations](https://dunggramer.github.io/constancy/guide/limitations): honest constraints
+- [FAQ](https://dunggramer.github.io/constancy/guide/faq): 10 common questions
+- [API Overview](https://dunggramer.github.io/constancy/reference/api-overview): all 17 public APIs
+
+## API Reference
+
+### Freeze
+- [freezeShallow](https://dunggramer.github.io/constancy/freeze/freeze-shallow): native Object.freeze, top-level only
+- [deepFreeze](https://dunggramer.github.io/constancy/freeze/deep-freeze): recursive freeze with freezePrototypeChain opt-in
+
+### View (Proxy-based)
+- [immutableView](https://dunggramer.github.io/constancy/view/immutable-view): Proxy blocks mutations through this reference
+- [immutableMapView](https://dunggramer.github.io/constancy/view/immutable-map-view): read-only Map wrapper
+- [immutableSetView](https://dunggramer.github.io/constancy/view/immutable-set-view): read-only Set wrapper
+
+### Snapshot (clone + freeze)
+- [snapshot](https://dunggramer.github.io/constancy/snapshot/snapshot): independent frozen clone
+- [lock](https://dunggramer.github.io/constancy/snapshot/lock): alias of snapshot
+- [secureSnapshot](https://dunggramer.github.io/constancy/snapshot/secure-snapshot): null-prototype + accessor-throw hardening
+- [tamperEvident](https://dunggramer.github.io/constancy/snapshot/tamper-evident): 64-bit djb2+sdbm fingerprint (NOT cryptographic)
+
+### Isolation
+- [vault](https://dunggramer.github.io/constancy/isolation/vault): closure + copy-on-read, no reference escape
+
+### Verification
+- [isDeepFrozen](https://dunggramer.github.io/constancy/verification/is-deep-frozen) / [assertDeepFrozen](https://dunggramer.github.io/constancy/verification/assert-deep-frozen)
+- [isImmutableView](https://dunggramer.github.io/constancy/verification/is-immutable-view) / [assertImmutableView](https://dunggramer.github.io/constancy/verification/assert-immutable-view)
+- [checkRuntimeIntegrity](https://dunggramer.github.io/constancy/verification/check-runtime-integrity): detect builtin tampering
+
+## Recipes
+- [Protect config](https://dunggramer.github.io/constancy/recipes/protect-config)
+- [Protect API response](https://dunggramer.github.io/constancy/recipes/protect-api-response)
+- [Immutable Map/Set](https://dunggramer.github.io/constancy/recipes/immutable-map-set)
+- [Choose snapshot vs vault](https://dunggramer.github.io/constancy/recipes/choose-between-snapshot-and-vault)
+
+## Migration
+- [From v2 to v3](https://dunggramer.github.io/constancy/migration/from-v2-to-v3)
+- [Deprecated aliases](https://dunggramer.github.io/constancy/migration/deprecated-aliases)
+
+## Reference
+- [Type exports](https://dunggramer.github.io/constancy/reference/types)
+- [Glossary](https://dunggramer.github.io/constancy/reference/glossary)
+
+## Release Notes
+
+- [v3.0.1 security hardening](https://github.com/DungGramer/constancy/releases/tag/v3.0.1): 12 audit vectors closed
+- [v3.0.0 rewrite + SLSA 3](https://github.com/DungGramer/constancy/releases/tag/v3.0.0)

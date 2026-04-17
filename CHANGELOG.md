@@ -36,6 +36,12 @@ All notable changes to this project will be documented in this file.
 ### Backward Compatibility
 All fixes are backward compatible. New optional parameters (`freezePrototypeChain`, `blockToJSON`) default to `false`. Behavior corrections (null-proto snap, accessor throw) only affect unsafe patterns that violated the documented contract.
 
+### Internal
+- Refactored `checkRuntimeIntegrity` (CC 19 → 5), `immutableView` get-trap (CC 17 → 10), and `snapshot` nullifyPlainPrototypes (CC 19 → 6) to satisfy SonarCloud quality gate
+- Shared `_fingerprintSort` helper for prototype-key fingerprint (fixed `en-US` locale for cross-machine consistency)
+- Removed Claude Code review / assistant workflows (`claude.yml`, `claude-code-review.yml`) to reduce API cost surface
+- Replaced Symbol sentinel in view `get`-trap dispatch with discriminated union `{ handled, value }` for type safety
+
 ---
 
 ## [3.0.0] - 2026-04-16

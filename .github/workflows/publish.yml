@@ -9,7 +9,11 @@ permissions: read-all
 
 jobs:
   # Run CI tests before building
+  # Elevate permissions so nested semgrep/trivy jobs can upload SARIF
   ci:
+    permissions:
+      contents: read
+      security-events: write
     uses: ./.github/workflows/ci.yml
 
   # SLSA 3 isolated build — generates provenance attestation

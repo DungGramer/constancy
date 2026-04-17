@@ -1,103 +1,132 @@
 import { defineConfig } from 'vitepress'
+import { withMermaid } from 'vitepress-plugin-mermaid'
 
-export default defineConfig({
-  base: '/constancy/',
-  title: 'Constancy',
-  description:
-    'Immutability primitives for JavaScript — from freeze to isolated snapshots.',
+export default withMermaid({
+  ...defineConfig({
+    base: '/constancy/',
+    title: 'Constancy',
+    description:
+      'Immutability primitives for JavaScript — from freeze to isolated snapshots.',
 
-  head: [
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/constancy/favicon.svg' }],
-    ['meta', { name: 'theme-color', content: '#3c82f6' }],
-    ['meta', { property: 'og:type', content: 'website' }],
-    ['meta', { property: 'og:title', content: 'Constancy — Immutability primitives for JavaScript' }],
-    ['meta', { property: 'og:description', content: 'Five models of immutability: Freeze, View, Snapshot, Isolation, Verification. Zero deps, SLSA 3.' }],
-    ['meta', { property: 'og:url', content: 'https://dunggramer.github.io/constancy/' }],
-    ['meta', { name: 'twitter:card', content: 'summary' }],
-    ['meta', { name: 'twitter:title', content: 'Constancy' }],
-    ['meta', { name: 'twitter:description', content: 'Immutability primitives for JavaScript.' }],
-    ['meta', { name: 'keywords', content: 'immutability, freeze, proxy, snapshot, vault, tamper-evident, javascript, typescript, security' }],
-  ],
-
-  lastUpdated: true,
-  cleanUrls: true,
-  sitemap: { hostname: 'https://dunggramer.github.io/constancy/' },
-
-  themeConfig: {
-    search: { provider: 'local' },
-    socialLinks: [
-      { icon: 'github', link: 'https://github.com/DungGramer/constancy' },
-      { icon: 'npm', link: 'https://www.npmjs.com/package/constancy' },
+    head: [
+      ['link', { rel: 'icon', type: 'image/svg+xml', href: '/constancy/favicon.svg' }],
+      ['meta', { name: 'theme-color', content: '#3c82f6' }],
+      ['meta', { property: 'og:type', content: 'website' }],
+      ['meta', { property: 'og:title', content: 'Constancy — Immutability primitives for JavaScript' }],
+      ['meta', { property: 'og:description', content: 'Five models of immutability: Freeze, View, Snapshot, Isolation, Verification. Zero deps, SLSA 3.' }],
+      ['meta', { property: 'og:url', content: 'https://dunggramer.github.io/constancy/' }],
+      ['meta', { name: 'twitter:card', content: 'summary' }],
+      ['meta', { name: 'twitter:title', content: 'Constancy' }],
+      ['meta', { name: 'twitter:description', content: 'Immutability primitives for JavaScript.' }],
+      ['meta', { name: 'keywords', content: 'immutability, freeze, proxy, snapshot, vault, tamper-evident, javascript, typescript, security' }],
+      ['meta', { name: 'robots', content: 'index, follow, max-image-preview:large' }],
+      ['script', { type: 'application/ld+json' }, JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'SoftwareSourceCode',
+        name: 'constancy',
+        description: 'Zero-dependency immutability toolkit for JavaScript and TypeScript with 5 mental models: Freeze, View, Snapshot, Isolation, Verification.',
+        url: 'https://dunggramer.github.io/constancy/',
+        codeRepository: 'https://github.com/DungGramer/constancy',
+        programmingLanguage: ['TypeScript', 'JavaScript'],
+        runtimePlatform: 'Node.js >=20',
+        license: 'https://opensource.org/licenses/MIT',
+        author: {
+          '@type': 'Person',
+          name: 'DungGramer',
+          url: 'https://github.com/DungGramer',
+        },
+        keywords: 'immutability, freeze, proxy, snapshot, vault, tamper-evident, typescript, security, SLSA 3',
+      })],
     ],
-    editLink: {
-      pattern:
-        'https://github.com/DungGramer/constancy/edit/master/docs/:path',
-      text: 'Edit this page on GitHub',
-    },
-    footer: {
-      message: 'Released under the MIT License.',
-      copyright: '© 2026 DungGramer',
-    },
-  },
 
-  locales: {
-    root: {
-      label: 'English',
-      lang: 'en',
-      themeConfig: {
-        nav: [
-          { text: 'Guide', link: '/guide/getting-started' },
-          { text: 'API', link: '/reference/api-overview' },
-          { text: 'Recipes', link: '/recipes/protect-config' },
-          { text: 'Migration', link: '/migration/deprecated-aliases' },
-          { text: 'Release Notes', link: '/release-notes/' },
-        ],
-        sidebar: {
-          '/guide/': sidebarGuideEn(),
-          '/freeze/': sidebarApiEn(),
-          '/view/': sidebarApiEn(),
-          '/snapshot/': sidebarApiEn(),
-          '/isolation/': sidebarApiEn(),
-          '/verification/': sidebarApiEn(),
-          '/recipes/': sidebarRecipesEn(),
-          '/reference/': sidebarReferenceEn(),
-          '/migration/': sidebarMigrationEn(),
-          '/release-notes/': sidebarReleaseEn(),
-          '/contributing/': sidebarContributingEn(),
-        },
-      },
-    },
-    vi: {
-      label: 'Tiếng Việt',
-      lang: 'vi',
-      link: '/vi/',
-      head: [
-        ['meta', { property: 'og:title', content: 'Constancy — Nguyên hàm bất biến cho JavaScript' }],
-        ['meta', { property: 'og:description', content: 'Năm model bất biến: Freeze, View, Snapshot, Isolation, Verification. Zero deps, SLSA 3.' }],
-        ['meta', { name: 'twitter:description', content: 'Nguyên hàm bất biến cho JavaScript.' }],
+    lastUpdated: true,
+    cleanUrls: true,
+    sitemap: { hostname: 'https://dunggramer.github.io/constancy/' },
+
+    themeConfig: {
+      search: { provider: 'local' },
+      socialLinks: [
+        { icon: 'github', link: 'https://github.com/DungGramer/constancy' },
+        { icon: 'npm', link: 'https://www.npmjs.com/package/constancy' },
       ],
-      themeConfig: {
-        nav: [
-          { text: 'Hướng dẫn', link: '/vi/guide/getting-started' },
-          { text: 'API', link: '/vi/reference/api-overview' },
-          { text: 'Recipes', link: '/vi/recipes/protect-config' },
-          { text: 'Di chuyển', link: '/vi/migration/deprecated-aliases' },
-          { text: 'Ghi chú phát hành', link: '/vi/release-notes/' },
+      editLink: {
+        pattern:
+          'https://github.com/DungGramer/constancy/edit/master/docs/:path',
+        text: 'Edit this page on GitHub',
+      },
+      footer: {
+        message: 'Released under the MIT License.',
+        copyright: '© 2026 DungGramer',
+      },
+    },
+
+    locales: {
+      root: {
+        label: 'English',
+        lang: 'en',
+        themeConfig: {
+          nav: [
+            { text: 'Guide', link: '/guide/getting-started' },
+            { text: 'API', link: '/reference/api-overview' },
+            { text: 'Recipes', link: '/recipes/protect-config' },
+            { text: 'Migration', link: '/migration/deprecated-aliases' },
+            { text: 'Release Notes', link: '/release-notes/' },
+            { text: 'Funding', link: '/guide/funding' },
+          ],
+          sidebar: {
+            '/guide/': sidebarGuideEn(),
+            '/freeze/': sidebarApiEn(),
+            '/view/': sidebarApiEn(),
+            '/snapshot/': sidebarApiEn(),
+            '/isolation/': sidebarApiEn(),
+            '/verification/': sidebarApiEn(),
+            '/recipes/': sidebarRecipesEn(),
+            '/reference/': sidebarReferenceEn(),
+            '/migration/': sidebarMigrationEn(),
+            '/release-notes/': sidebarReleaseEn(),
+            '/contributing/': sidebarContributingEn(),
+          },
+        },
+      },
+      vi: {
+        label: 'Tiếng Việt',
+        lang: 'vi',
+        link: '/vi/',
+        head: [
+          ['meta', { property: 'og:title', content: 'Constancy — Nguyên hàm bất biến cho JavaScript' }],
+          ['meta', { property: 'og:description', content: 'Năm model bất biến: Freeze, View, Snapshot, Isolation, Verification. Zero deps, SLSA 3.' }],
+          ['meta', { name: 'twitter:description', content: 'Nguyên hàm bất biến cho JavaScript.' }],
         ],
-        sidebar: {
-          '/vi/guide/': sidebarGuideVi(),
-          '/vi/freeze/': sidebarApiVi(),
-          '/vi/view/': sidebarApiVi(),
-          '/vi/snapshot/': sidebarApiVi(),
-          '/vi/isolation/': sidebarApiVi(),
-          '/vi/verification/': sidebarApiVi(),
-          '/vi/recipes/': sidebarRecipesVi(),
-          '/vi/reference/': sidebarReferenceVi(),
-          '/vi/migration/': sidebarMigrationVi(),
-          '/vi/release-notes/': sidebarReleaseVi(),
+        themeConfig: {
+          nav: [
+            { text: 'Hướng dẫn', link: '/vi/guide/getting-started' },
+            { text: 'API', link: '/vi/reference/api-overview' },
+            { text: 'Recipes', link: '/vi/recipes/protect-config' },
+            { text: 'Di chuyển', link: '/vi/migration/deprecated-aliases' },
+            { text: 'Ghi chú phát hành', link: '/vi/release-notes/' },
+            { text: 'Tài trợ', link: '/vi/guide/funding' },
+          ],
+          sidebar: {
+            '/vi/guide/': sidebarGuideVi(),
+            '/vi/freeze/': sidebarApiVi(),
+            '/vi/view/': sidebarApiVi(),
+            '/vi/snapshot/': sidebarApiVi(),
+            '/vi/isolation/': sidebarApiVi(),
+            '/vi/verification/': sidebarApiVi(),
+            '/vi/recipes/': sidebarRecipesVi(),
+            '/vi/reference/': sidebarReferenceVi(),
+            '/vi/migration/': sidebarMigrationVi(),
+            '/vi/release-notes/': sidebarReleaseVi(),
+          },
         },
       },
     },
+  }),
+  mermaid: {
+    theme: 'default',
+  },
+  mermaidPlugin: {
+    class: 'mermaid my-class',
   },
 })
 
@@ -172,6 +201,12 @@ function sidebarGuideEn() {
       items: [
         { text: 'Security Guide', link: '/guide/security' },
         { text: 'Threat Model', link: '/guide/threat-model' },
+      ],
+    },
+    {
+      text: 'Support',
+      items: [
+        { text: 'Funding', link: '/guide/funding' },
       ],
     },
   ]
@@ -318,6 +353,12 @@ function sidebarGuideVi() {
       items: [
         { text: 'Hướng dẫn bảo mật', link: '/vi/guide/security' },
         { text: 'Mô hình mối đe dọa', link: '/vi/guide/threat-model' },
+      ],
+    },
+    {
+      text: 'Hỗ trợ',
+      items: [
+        { text: 'Tài trợ', link: '/vi/guide/funding' },
       ],
     },
   ]

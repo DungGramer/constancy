@@ -63,7 +63,11 @@ function stringifyObjectKeys(obj: Record<string | symbol, unknown>, seen: WeakSe
 
 /** Deterministic serialisation: _ownKeys (string + symbol), sorted.
  *  String and symbol keys are serialized in structurally separate sections
- *  (separated by '|') so no crafted string key can collide with a symbol key. */
+ *  (separated by '|') so no crafted string key can collide with a symbol key.
+ *
+ *  Built-in types with internal slots (Map, Set, Date) are given a dedicated
+ *  tagged representation that reaches into the slot data. Without this, every
+ *  empty Map/Set and every Date would share the same fingerprint (audit T2/T3/T4). */
 function stableStringify(val: unknown, seen: WeakSet<object> = new WeakSet()): string {
   if (val === null || typeof val !== 'object') return stringifyPrimitive(val);
 
@@ -73,6 +77,26 @@ function stableStringify(val: unknown, seen: WeakSet<object> = new WeakSet()): s
 
   if (Array.isArray(val)) {
     return '[' + val.map(v => stableStringify(v, seen)).join(',') + ']';
+  }
+
+  // Tagged serialization for built-in types whose data is in internal slots
+  if (val instanceof Date) {
+    return 'Date(' + val.getTime() + ')';
+  }
+  if (val instanceof Map) {
+    const entries = Array.from((val as Map<unknown, unknown>).entries())
+      .map(([k, v]) => [stableStringify(k, seen), stableStringify(v, seen)] as const);
+    entries.sort((a, b) => a[0].localeCompare(b[0]));
+    return 'Map{' + entries.map(([k, v]) => k + ':' + v).join(',') + '}';
+  }
+  if (val instanceof Set) {
+    const items = Array.from((val as Set<unknown>).values())
+      .map(v => stableStringify(v, seen));
+    items.sort((a, b) => a.localeCompare(b));
+    return 'Set{' + items.join(',') + '}';
+  }
+  if (val instanceof RegExp) {
+    return 'RegExp(' + val.source + '/' + val.flags + ')';
   }
 
   return stringifyObjectKeys(val as Record<string | symbol, unknown>, seen);

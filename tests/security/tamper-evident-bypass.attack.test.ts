@@ -6,25 +6,27 @@ import { describe, it, expect } from 'vitest';
 import { tamperEvident } from '../../src/index';
 
 describe('Layer 3 — tamperEvident bypasses', () => {
-  it('BYPASS T2: two semantically different Maps produce the SAME fingerprint', () => {
+  it('T2 fix: different Maps produce different fingerprints (internal slot reached)', () => {
     const a = tamperEvident(new Map([['k', 'v']]));
     const b = tamperEvident(new Map<string, string>());
     const c = tamperEvident(new Map([['other', 'payload']]));
-    // BYPASS: stableStringify iterates own keys — Map entries live in internal slot
-    expect(a.fingerprint).toBe(b.fingerprint);
-    expect(a.fingerprint).toBe(c.fingerprint);
+    expect(a.fingerprint).not.toBe(b.fingerprint);
+    expect(a.fingerprint).not.toBe(c.fingerprint);
+    expect(b.fingerprint).not.toBe(c.fingerprint);
   });
 
-  it('BYPASS T3: two semantically different Sets produce the SAME fingerprint', () => {
+  it('T3 fix: different Sets produce different fingerprints', () => {
     const a = tamperEvident(new Set([1, 2, 3]));
     const b = tamperEvident(new Set<number>());
-    expect(a.fingerprint).toBe(b.fingerprint);
+    const c = tamperEvident(new Set([1, 2, 3, 4]));
+    expect(a.fingerprint).not.toBe(b.fingerprint);
+    expect(a.fingerprint).not.toBe(c.fingerprint);
   });
 
-  it('BYPASS T4: different Date values collide', () => {
+  it('T4 fix: different Date values produce different fingerprints', () => {
     const a = tamperEvident(new Date(0));
     const b = tamperEvident(new Date(9_999_999));
-    expect(a.fingerprint).toBe(b.fingerprint);
+    expect(a.fingerprint).not.toBe(b.fingerprint);
   });
 
   it('BYPASS T5: Symbols with identical descriptions produce identical hash entries', () => {
